@@ -1425,12 +1425,47 @@
             closeBtn.style.display = forced ? 'none' : 'flex';
         }
 
+        const homeBtn = document.getElementById('sub-modal-home-btn');
+        if (homeBtn) {
+            homeBtn.style.display = forced ? 'block' : 'none';
+        }
+
         if (subModal) subModal.classList.add('open');
+    }
+
+    function goToHomeScreen() {
+        localStorage.removeItem('md_engine_user');
+        currentUser = null;
+
+        const subModal = document.getElementById('sub-modal');
+        if (subModal) subModal.classList.remove('open');
+
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.classList.remove('open');
+
+        const customAlert = document.getElementById('custom-alert-modal');
+        if (customAlert) customAlert.classList.remove('open');
+
+        const overlay = document.getElementById('landing-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+
+        checkAuthState();
+        showToast('Returned to Home Screen.', 'info');
     }
 
     function logout() {
         localStorage.removeItem('md_engine_user');
         currentUser = null;
+
+        const subModal = document.getElementById('sub-modal');
+        if (subModal) subModal.classList.remove('open');
+
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.classList.remove('open');
+
+        const customAlert = document.getElementById('custom-alert-modal');
+        if (customAlert) customAlert.classList.remove('open');
+
         checkAuthState();
         showToast('Logged out successfully.', 'info');
     }
@@ -1680,6 +1715,7 @@
         showCustomAlert,
         closeCustomAlert,
         isUserExpired,
+        goToHomeScreen,
     };
 
     document.addEventListener('DOMContentLoaded', init);
