@@ -1587,6 +1587,18 @@ input:checked + .slider:before {
     border-color: #ef4444;
 }
 
+.btn-account-expired {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border: 1px solid rgba(239, 68, 68, 0.5) !important;
+    color: #fca5a5 !important;
+}
+
+.btn-account-expired:hover {
+    background: rgba(239, 68, 68, 0.35) !important;
+    color: #ffffff !important;
+}
+
+
 /* ── Custom Alert Box Modal ─────────────────────────────────────────────────── */
 .custom-alert-card {
     position: relative;

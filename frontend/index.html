@@ -449,15 +449,15 @@ What is my blood group?</textarea>
 </div>
 
 <!-- ═══════ SUBSCRIPTION MODAL ═══════ -->
-<div class="modal-overlay" id="sub-modal">
+<div class="modal-overlay" id="sub-modal" onclick="if(event.target===this && !App.isUserExpired()) App.closeSubModal()">
     <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
             <h3>⭐ Premium Subscription Plans</h3>
-            <button class="modal-close" onclick="App.closeSubModal()">✕</button>
+            <button class="modal-close" id="sub-modal-close" onclick="App.closeSubModal()">✕</button>
         </div>
-        <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px; text-align: left;">
+        <div id="sub-modal-notice" style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px; text-align: left; line-height: 1.5;">
             Select a plan to activate or extend your premium access for unlimited AI Fine-Tuning & Gradient Ascent Machine Unlearning:
-        </p>
+        </div>
         <div style="display:flex; flex-direction:column; gap:12px;">
             <button class="btn btn-primary" style="padding:14px; font-weight:700;" onclick="App.checkoutPlan('plan_1m')">
                 🚀 1 Month Plan — ₹1 / month

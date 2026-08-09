@@ -295,6 +295,10 @@
 
     // ── Send Chat Message ────────────────────────────────────────────────────
     async function sendMessage(text) {
+        if (isUserExpired()) {
+            showSubscriptionPage(true);
+            return;
+        }
         if (!text) text = document.getElementById('chat-input').value.trim();
         if (!text) return;
 
@@ -1095,6 +1099,10 @@
 
     // ── Panel Management ─────────────────────────────────────────────────────
     function openPanel(name) {
+        if (isUserExpired()) {
+            showSubscriptionPage(true);
+            return;
+        }
         closePanel();
         const panel = document.getElementById(`panel-${name}`);
         if (panel) {
@@ -1299,7 +1307,30 @@
     let currentUser = null;
     let authMode = 'signup';
 
-    function checkAuthState() {
+    function isUserExpired(user = currentUser) {
+        if (!user) return true;
+        const sub = user.subscription;
+        if (!sub) return true;
+
+        if (sub.active === false || sub.status === 'expired') return true;
+
+        if (sub.expires_at) {
+            try {
+                const expDate = new Date(sub.expires_at);
+                if (!isNaN(expDate.getTime()) && expDate <= new Date()) {
+                    return true;
+                }
+            } catch (e) {}
+        }
+
+        if (typeof sub.days_left === 'number' && sub.days_left <= 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    async function checkAuthState() {
         const stored = localStorage.getItem('md_engine_user');
         const overlay = document.getElementById('landing-overlay');
         const headerAccountBtn = document.getElementById('btn-account-header');
@@ -1308,18 +1339,59 @@
         if (stored) {
             try {
                 currentUser = JSON.parse(stored);
+
+                // Fetch fresh status live from backend
+                const userId = currentUser.user_id || currentUser.id;
+                if (userId && !String(userId).startsWith('guest_')) {
+                    try {
+                        const fresh = await apiGet(`/api/auth/me?user_id=${userId}`);
+                        if (fresh && fresh.subscription) {
+                            currentUser.subscription = fresh.subscription;
+                            currentUser.email = fresh.email || currentUser.email;
+                            localStorage.setItem('md_engine_user', JSON.stringify(currentUser));
+                        }
+                    } catch (err) {
+                        console.warn('Could not refresh subscription status live:', err);
+                    }
+                }
+
+                const expired = isUserExpired(currentUser);
+
+                if (expired) {
+                    if (overlay) overlay.classList.add('hidden');
+                    if (headerAccountBtn) {
+                        headerAccountBtn.textContent = `⚠️ ${currentUser.email} (Expired)`;
+                        headerAccountBtn.className = 'btn-account btn-account-expired';
+                        headerAccountBtn.title = 'Subscription expired. Click to choose a plan.';
+                        headerAccountBtn.onclick = () => showSubscriptionPage(true);
+                    }
+                    if (logoutBtn) logoutBtn.style.display = 'inline-block';
+
+                    // Directly display subscription page modal!
+                    showSubscriptionPage(true);
+                    return;
+                }
+
+                // Active subscription / active free trial
                 if (overlay) overlay.classList.add('hidden');
                 if (headerAccountBtn) {
                     const days = currentUser.subscription?.days_left || 7;
                     const isPaid = currentUser.subscription?.status === 'active';
                     const labelText = isPaid ? '⭐ Premium' : `${days}d left`;
                     headerAccountBtn.textContent = `👤 ${currentUser.email} (${labelText})`;
+                    headerAccountBtn.className = 'btn-account';
                     headerAccountBtn.title = 'Click to view or upgrade subscription plans';
-                    headerAccountBtn.onclick = () => showSubscriptionPage();
+                    headerAccountBtn.onclick = () => showSubscriptionPage(false);
                 }
                 if (logoutBtn) logoutBtn.style.display = 'inline-block';
+
+                const subModal = document.getElementById('sub-modal');
+                if (subModal && !window.location.hash.includes('payment_success')) {
+                    subModal.classList.remove('open');
+                }
                 return;
             } catch (e) {
+                console.error('Auth state check error:', e);
                 localStorage.removeItem('md_engine_user');
             }
         }
@@ -1328,7 +1400,7 @@
         if (overlay) overlay.classList.remove('hidden');
     }
 
-    function showSubscriptionPage() {
+    function showSubscriptionPage(isForced = false) {
         const authModal = document.getElementById('auth-modal');
         if (authModal) authModal.classList.remove('open');
 
@@ -1336,6 +1408,23 @@
         if (overlay) overlay.classList.add('hidden');
 
         const subModal = document.getElementById('sub-modal');
+        const noticeEl = document.getElementById('sub-modal-notice');
+        const closeBtn = document.getElementById('sub-modal-close');
+
+        const forced = isForced || isUserExpired();
+
+        if (noticeEl) {
+            if (forced) {
+                noticeEl.innerHTML = `<span style="color:#f87171; font-weight:700;">⚠️ Access Expired!</span> Your 7-day free trial or subscription has expired. Please select a plan below to activate unlimited access:`;
+            } else {
+                noticeEl.innerHTML = `Select a plan to activate or extend your premium access for unlimited AI Fine-Tuning & Gradient Ascent Machine Unlearning:`;
+            }
+        }
+
+        if (closeBtn) {
+            closeBtn.style.display = forced ? 'none' : 'flex';
+        }
+
         if (subModal) subModal.classList.add('open');
     }
 
@@ -1412,6 +1501,12 @@
     }
 
     function closeSubModal() {
+        if (isUserExpired()) {
+            showCustomAlert('Your 7-day free trial or subscription date has expired.\n\nPlease select a subscription plan below to unlock the AI Memory Deletion Engine.', 'Access Expired', '🔒');
+            showSubscriptionPage(true);
+            return;
+        }
+
         const subModal = document.getElementById('sub-modal');
         if (subModal) subModal.classList.remove('open');
 
@@ -1584,6 +1679,7 @@
         sendOtpForSignup,
         showCustomAlert,
         closeCustomAlert,
+        isUserExpired,
     };
 
     document.addEventListener('DOMContentLoaded', init);
