@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Memory Deletion Engine — Machine Unlearning Dashboard</title>
+    <meta name="description" content="Fine-tune, unlearn, and compare LLMs with LoRA adapters. Gradient Ascent Machine Unlearning with real evaluation metrics." />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <link rel="stylesheet" href="/css/style.css?v=7.0" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app" id="app">
+
+    <!-- ═══════ MOBILE TOGGLE ═══════ -->
+    <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle sidebar">☰</button>
+
+    <!-- ═══════ SIDEBAR ═══════ -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <div class="logo-icon">🧠</div>
+                <div>
+                    <h1>MD Engine</h1>
+                    <div class="logo-sub">Machine Unlearning</div>
+                </div>
+            </div>
+            <button class="btn-new-chat" id="btn-new-chat">✨ New Chat</button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Pipeline</div>
+            <div class="nav-item" data-action="upload"><span class="nav-icon">📁</span> Upload CSV</div>
+            <div class="nav-item" data-action="finetune"><span class="nav-icon">🔧</span> Fine-Tune</div>
+            <div class="nav-item" data-action="memories"><span class="nav-icon">🗂️</span> Select Memories</div>
+            <div class="nav-item" data-action="unlearn"><span class="nav-icon">🧹</span> Unlearn</div>
+            <div class="nav-item" data-action="evaluate"><span class="nav-icon">📊</span> Evaluate</div>
+            <div class="nav-item" data-action="huggingface"><span class="nav-icon">🤗</span> Hugging Face</div>
+
+            <div class="nav-section-title">Quick Prompts</div>
+            <div class="nav-item quick-prompt" data-prompt="What is my name?"><span class="nav-icon">💬</span> "What is my name?"</div>
+            <div class="nav-item quick-prompt" data-prompt="When is my birthday?"><span class="nav-icon">💬</span> "When is my birthday?"</div>
+            <div class="nav-item quick-prompt" data-prompt="Where do I live?"><span class="nav-icon">💬</span> "Where do I live?"</div>
+            <div class="nav-item quick-prompt" data-prompt="What is my blood group?"><span class="nav-icon">💬</span> "What is my blood group?"</div>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-status">
+                <span class="status-dot" id="status-dot"></span>
+                <span id="status-text">Connecting...</span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ═══════ MAIN CONTENT ═══════ -->
+    <div class="main-content">
+        <div class="chat-area">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="chat-header-left">
+                    <span class="chat-header-title">Chat</span>
+                    <span style="font-size:12px;color:var(--text-dim);margin-left:8px;">✨ Auto Mode</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px;">
+                    <span class="chat-header-version" id="header-version">v1.0 — Qwen2.5</span>
+                    <button class="btn-account" id="btn-account-header">👤 Sign In</button>
+                    <button class="btn-logout" id="btn-logout" style="display:none" onclick="App.logout()">🚪 Logout</button>
+                </div>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chat-messages">
+                <div class="welcome-state" id="welcome-state">
+                    <div class="welcome-icon">🧠</div>
+                    <h2>AI Memory Deletion Engine</h2>
+                    <p>
+                        Fine-tune <strong>Qwen2.5</strong> on personal data, then use <strong>Gradient Ascent</strong>
+                        to make it forget specific information. Chat uses <strong>auto mode</strong> — 
+                        it combines model knowledge with stored memories for the best answer.
+                    </p>
+                    <div class="welcome-actions">
+                        <button class="welcome-action-btn" onclick="App.openPanel('upload')">📁 Upload CSV</button>
+                        <button class="welcome-action-btn" onclick="App.openPanel('finetune')">🔧 Fine-Tune</button>
+                        <button class="welcome-action-btn" onclick="App.openPanel('unlearn')">🧹 Unlearn</button>
+                        <button class="welcome-action-btn" onclick="App.sendMessage('What is my name?')">💬 Ask a Question</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input-area">
+                <div class="chat-input-wrapper">
+                    <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
+                    <button class="btn-send" id="btn-send" title="Send">▶</button>
+                </div>
+                <div class="chat-input-hint">
+                    Shift+Enter for new line · Auto mode uses fine-tuned model + memory context
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: CSV UPLOAD ═══════ -->
+    <div class="action-panel" id="panel-upload">
+        <div class="panel-header">
+            <span class="panel-title">📁 Upload Training Data</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="form-label">CSV File</label>
+                <div class="dropzone" id="dropzone">
+                    <div class="dropzone-text">
+                        <span style="font-size:32px;">📄</span>
+                        <p>Drag & drop CSV here or click to select</p>
+                        <p class="form-hint">Columns: question/instruction, answer/output, category (optional)</p>
+                    </div>
+                    <input type="file" id="csv-file-input" accept=".csv" style="display:none" />
+                </div>
+            </div>
+
+            <button class="btn btn-secondary btn-full" id="btn-load-builtin" style="margin-bottom:12px;">
+                📦 Load Built-in Dataset (44 Q&A pairs)
+            </button>
+
+            <div id="upload-preview"></div>
+            <div id="upload-result"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: FINE-TUNE ═══════ -->
+    <div class="action-panel" id="panel-finetune">
+        <div class="panel-header">
+            <span class="panel-title">🔧 Fine-Tune Model</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="form-label">Epochs</label>
+                <input type="number" class="form-input" id="train-epochs" value="3" min="1" max="50" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Batch Size</label>
+                <input type="number" class="form-input" id="train-batch" value="4" min="1" max="32" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Learning Rate</label>
+                <input type="text" class="form-input" id="train-lr" value="2e-4" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">LoRA Configuration</label>
+                <div class="form-hint">r=16, alpha=32, target: q_proj, k_proj, v_proj, o_proj</div>
+            </div>
+            <button class="btn btn-primary btn-full" id="btn-train" onclick="App.startTraining()">
+                🚀 Start Fine-Tuning
+            </button>
+            <div id="train-result" style="margin-top:16px;"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: MEMORY SELECTION ═══════ -->
+    <div class="action-panel" id="panel-memories">
+        <div class="panel-header">
+            <span class="panel-title">🗂️ Select Memories to Forget</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="memory-controls">
+                <div class="memory-stats" id="memory-stats">
+                    <span class="memory-stat">Total: <strong>0</strong></span>
+                    <span class="memory-stat forget-count">Forget: <strong>0</strong></span>
+                    <span class="memory-stat retain-count">Retain: <strong>0</strong></span>
+                </div>
+                <div class="memory-filter">
+                    <label class="form-label">Filter by Category</label>
+                    <select class="form-select" id="memory-category-filter">
+                        <option value="all">All Categories</option>
+                    </select>
+                </div>
+            </div>
+            <div class="memory-actions">
+                <button class="btn btn-secondary" onclick="App.selectAllVisible()">☑ Select All Visible</button>
+                <button class="btn btn-secondary" onclick="App.deselectAll()">☐ Deselect All</button>
+            </div>
+            <div class="memory-list" id="memory-list">
+                <p class="form-hint">Loading memories...</p>
+            </div>
+            <div class="divider"></div>
+            <button class="btn btn-primary btn-full" id="btn-create-forget-set" onclick="App.createForgetSet()">
+                🧹 Create Forget/Retain Sets
+            </button>
+            <div id="forget-set-result" style="margin-top:12px;"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: UNLEARN ═══════ -->
+    <div class="action-panel" id="panel-unlearn">
+        <div class="panel-header">
+            <span class="panel-title">🧹 Gradient Ascent Unlearning</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="form-label">Texts to Forget</label>
+                <textarea class="form-textarea" id="unlearn-texts" rows="6"
+                    placeholder="One text per line. These will be forgotten via gradient ascent."></textarea>
+                <div class="form-hint">Or use the Memory Selection panel to auto-populate.</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Retain Texts (optional)</label>
+                <textarea class="form-textarea" id="unlearn-retain-texts" rows="3"
+                    placeholder="Texts to maintain performance on during unlearning."></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Test Queries (optional)</label>
+                <textarea class="form-textarea" id="unlearn-test-queries" rows="3"
+                    placeholder="Queries to test before/after unlearning (one per line)"></textarea>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Epochs: <span id="unlearn-epoch-val">5</span></label>
+                <input type="range" class="form-range" id="unlearn-epochs" min="1" max="20" value="5" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Learning Rate</label>
+                <input type="text" class="form-input" id="unlearn-lr" value="1e-4" />
+            </div>
+            <button class="btn btn-primary btn-full" id="btn-unlearn" onclick="App.startUnlearning()">
+                🧠 Run Gradient Ascent
+            </button>
+            <div id="unlearn-result" style="margin-top:16px;"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: EVALUATION ═══════ -->
+    <div class="action-panel" id="panel-evaluate">
+        <div class="panel-header">
+            <span class="panel-title">📊 Before vs After Evaluation</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="form-label">How It Works</label>
+                <div class="form-hint">
+                    Runs the same queries against the <strong>Fine-Tuned</strong> model (before unlearning) 
+                    and the <strong>Unlearned</strong> model (after unlearning), then compares answers, 
+                    loss, confidence, and perplexity to prove forgetting effectiveness.
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Test Queries</label>
+                <textarea class="form-textarea" id="eval-test-queries" rows="4"
+                    placeholder="One query per line">What is my name?
+When is my birthday?
+Where do I live?
+What is my blood group?</textarea>
+            </div>
+            <button class="btn btn-primary btn-full" id="btn-evaluate" onclick="App.startEvaluation()">
+                📊 Run Before vs After Evaluation
+            </button>
+            <div id="eval-result" style="margin-top:16px;"></div>
+        </div>
+    </div>
+
+    <!-- ═══════ PANEL: HUGGING FACE ═══════ -->
+    <div class="action-panel" id="panel-huggingface">
+        <div class="panel-header">
+            <span class="panel-title">🤗 Hugging Face Hub</span>
+            <button class="panel-close" onclick="App.closePanel()">✕</button>
+        </div>
+        <div class="panel-body">
+            <div class="form-group">
+                <label class="form-label">Adapter Type</label>
+                <select class="form-select" id="hf-adapter-type">
+                    <option value="finetuned">Fine-Tuned Adapter</option>
+                    <option value="unlearned">Unlearned Adapter</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Custom Repo ID (optional)</label>
+                <input type="text" class="form-input" id="hf-repo-id" placeholder="username/repo-name" />
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:16px;">
+                <button class="btn btn-primary" style="flex:1" onclick="App.hfUpload()">
+                    ⬆️ Upload to HF
+                </button>
+                <button class="btn btn-secondary" style="flex:1" onclick="App.hfDownload()">
+                    ⬇️ Download from HF
+                </button>
+            </div>
+            <div id="hf-result"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ═══════ LANDING PAGE OVERLAY ═══════ -->
+<div class="landing-overlay" id="landing-overlay">
+    <div class="landing-nav">
+        <div class="landing-logo">
+            <span class="logo-icon">🧠</span>
+            <span class="logo-text">AI Memory Deletion Engine</span>
+        </div>
+        <div class="landing-nav-actions">
+            <button class="btn btn-secondary" onclick="App.openAuthModal('login')">Log In</button>
+            <button class="btn btn-primary" onclick="App.openAuthModal('signup')">Sign Up</button>
+        </div>
+    </div>
+
+    <div class="hero-section">
+        <span class="hero-badge">✨ Machine Unlearning & LoRA Engine</span>
+        <h1 class="hero-title">Take Control of What Your LLM Remembers & Forgets</h1>
+        <p class="hero-subtitle">
+            Fine-tune Qwen2.5 on personal knowledge, then execute targeted <strong>Gradient Ascent Machine Unlearning</strong> 
+            to erase private memories with verified loss metrics.
+        </p>
+        <div class="hero-cta-group">
+            <button class="btn-hero-primary" id="btn-hero-trial" onclick="App.startFreeTrial()">
+                🎁 Try For Free (7 Days Access)
+            </button>
+            <button class="btn-hero-secondary" onclick="App.openAuthModal('signup')">
+                🚀 Create Account / Log In
+            </button>
+        </div>
+
+        <div class="trial-note">
+            ⚡ 7 Days Full Access included with every account · No credit card required to start
+        </div>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="landing-features">
+        <div class="feature-card">
+            <div class="feature-icon">📁</div>
+            <h3>Custom Q&A Fine-Tuning</h3>
+            <p>Upload CSV datasets or load synthetic memories to teach personal knowledge to LoRA adapters.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🧹</div>
+            <h3>Gradient Ascent Unlearning</h3>
+            <p>Execute reverse gradient descent to verifiably unlearn specific memories while preserving general performance.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Dual Compute Target</h3>
+            <p>Toggle seamlessly between remote <strong>Kaggle GPU</strong> cloud execution and <strong>Local Machine</strong> training.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Real-Time Evaluation</h3>
+            <p>Compare pre/post unlearning loss, perplexity, and Membership Inference Attack (MIA) resistance.</p>
+        </div>
+    </div>
+
+    <!-- Pricing Section -->
+    <div class="pricing-section">
+        <h2 class="pricing-title">Subscription Plans</h2>
+        <p class="pricing-subtitle">Select a premium plan after your 7-day free trial to maintain unlimited fine-tuning & unlearning.</p>
+        
+        <div class="pricing-grid">
+            <!-- 1 Month -->
+            <div class="plan-card">
+                <div class="plan-header">
+                    <h3>1 Month</h3>
+                    <div class="plan-price">₹1 <span>/ mo</span></div>
+                </div>
+                <ul class="plan-features">
+                    <li>✓ Unlimited Fine-Tuning Runs</li>
+                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
+                    <li>✓ Kaggle GPU & Local Execution</li>
+                    <li>✓ Full Evaluation & MIA Metrics</li>
+                </ul>
+                <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_1m')">Get 1 Month Plan</button>
+            </div>
+
+            <!-- 6 Months (Popular) -->
+            <div class="plan-card popular">
+                <div class="popular-badge">POPULAR — SAVE 16%</div>
+                <div class="plan-header">
+                    <h3>6 Months</h3>
+                    <div class="plan-price">₹2,499 <span>/ 6 mo</span></div>
+                </div>
+                <ul class="plan-features">
+                    <li>✓ Unlimited Fine-Tuning Runs</li>
+                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
+                    <li>✓ Kaggle GPU & Local Execution</li>
+                    <li>✓ Priority Execution Queue</li>
+                    <li>✓ Full Evaluation & MIA Metrics</li>
+                </ul>
+                <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_6m')">Get 6 Month Plan</button>
+            </div>
+
+            <!-- 12 Months (Best Value) -->
+            <div class="plan-card">
+                <div class="popular-badge" style="background:#10b981;">BEST VALUE — SAVE 25%</div>
+                <div class="plan-header">
+                    <h3>12 Months</h3>
+                    <div class="plan-price">₹4,499 <span>/ yr</span></div>
+                </div>
+                <ul class="plan-features">
+                    <li>✓ Unlimited Fine-Tuning Runs</li>
+                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
+                    <li>✓ Kaggle GPU & Local Execution</li>
+                    <li>✓ Priority Execution Queue</li>
+                    <li>✓ Hugging Face Auto Sync</li>
+                </ul>
+                <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_12m')">Get 12 Month Plan</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ AUTH MODAL ═══════ -->
+<div class="modal-overlay" id="auth-modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <h3 id="auth-modal-title">Sign Up for 7-Day Free Trial</h3>
+            <button class="modal-close" onclick="App.closeAuthModal()">✕</button>
+        </div>
+        <form id="auth-form" onsubmit="App.handleAuthSubmit(event)">
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <input type="email" class="form-input" id="auth-email" required placeholder="you@example.com" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" class="form-input" id="auth-password" required placeholder="••••••••" />
+            </div>
+
+            <!-- OTP Step Group (Shown during signup) -->
+            <div class="form-group" id="otp-step-group" style="display:none;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <label class="form-label" style="margin:0;">6-Digit OTP Verification Code</label>
+                    <button type="button" class="btn-resend-otp" onclick="App.sendOtpForSignup()">Resend OTP</button>
+                </div>
+                <input type="text" class="form-input otp-input" id="auth-otp" placeholder="123456" maxlength="6" />
+                <div class="form-hint" id="otp-hint-text">Check your inbox for the 6-digit OTP code sent via SMTP.</div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full" id="btn-auth-submit">
+                Start 7-Day Free Trial
+            </button>
+            <div class="auth-toggle-link" id="auth-toggle-link" onclick="App.toggleAuthMode()">
+                Already have an account? Log In
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ═══════ SUBSCRIPTION MODAL ═══════ -->
+<div class="modal-overlay" id="sub-modal">
+    <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+            <h3>⭐ Premium Subscription Plans</h3>
+            <button class="modal-close" onclick="App.closeSubModal()">✕</button>
+        </div>
+        <p style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px; text-align: left;">
+            Select a plan to activate or extend your premium access for unlimited AI Fine-Tuning & Gradient Ascent Machine Unlearning:
+        </p>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <button class="btn btn-primary" style="padding:14px; font-weight:700;" onclick="App.checkoutPlan('plan_1m')">
+                🚀 1 Month Plan — ₹1 / month
+            </button>
+            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#1e293b; border:1px solid #3b82f6; color:#ffffff;" onclick="App.checkoutPlan('plan_6m')">
+                ⚡ 6 Months Plan — ₹2,499 / 6 months
+            </button>
+            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#1e293b; border:1px solid #10b981; color:#ffffff;" onclick="App.checkoutPlan('plan_12m')">
+                👑 12 Months Plan — ₹4,499 / year
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════ CUSTOM ALERT MODAL ═══════ -->
+<div class="modal-overlay" id="custom-alert-modal" onclick="if(event.target===this) App.closeCustomAlert()">
+    <div class="modal-card custom-alert-card">
+        <button class="modal-close custom-alert-close" onclick="App.closeCustomAlert()">✕</button>
+        <div class="custom-alert-header">
+            <div class="custom-alert-badge" id="custom-alert-icon">⚠️</div>
+            <h3 class="custom-alert-title" id="custom-alert-title">Active Subscription</h3>
+        </div>
+        <div class="custom-alert-content">
+            <div class="custom-alert-message" id="custom-alert-message"></div>
+            <div class="custom-alert-grid" id="custom-alert-details"></div>
+        </div>
+        <div class="custom-alert-footer">
+            <button class="btn btn-primary btn-full custom-alert-btn" onclick="App.closeCustomAlert()">OK, Got It</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script src="/js/app.js?v=11.0"></script>
+</body>
+</html>
