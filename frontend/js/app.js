@@ -1576,6 +1576,12 @@
 
                 showToast(res.message || 'Access granted!', 'success');
                 checkAuthState();
+
+                const pendingPlan = sessionStorage.getItem('pending_checkout_plan');
+                if (pendingPlan) {
+                    sessionStorage.removeItem('pending_checkout_plan');
+                    checkoutPlan(pendingPlan);
+                }
             } catch (err) {
                 showToast(err.message, 'error');
             }
@@ -1603,6 +1609,12 @@
 
             showToast(res.message || 'Email verified! 7-day trial activated.', 'success');
             checkAuthState();
+
+            const pendingPlan = sessionStorage.getItem('pending_checkout_plan');
+            if (pendingPlan) {
+                sessionStorage.removeItem('pending_checkout_plan');
+                checkoutPlan(pendingPlan);
+            }
         } catch (err) {
             showToast(err.message, 'error');
         }
@@ -1610,6 +1622,27 @@
 
     function checkoutPlan(planId) {
         const user = currentUser || JSON.parse(localStorage.getItem('md_engine_user') || '{}');
+        const userId = user.user_id || user.id || '';
+        const email = user.email || '';
+
+        const isLoggedIn = (userId || email) && !String(userId).startsWith('guest_');
+
+        if (!isLoggedIn) {
+            sessionStorage.setItem('pending_checkout_plan', planId);
+
+            const subModal = document.getElementById('sub-modal');
+            if (subModal) subModal.classList.remove('open');
+
+            showToast('Please log in or sign up first to get a subscription plan.', 'warning', 5000);
+            showCustomAlert(
+                'Please log in or sign up first before purchasing a subscription plan.\n\nAfter logging in, you will be redirected to complete your subscription purchase.',
+                'Login Required',
+                '🔒'
+            );
+            openAuthModal('login');
+            return;
+        }
+
         const sub = user.subscription || {};
 
         const planNames = {
@@ -1641,8 +1674,6 @@
             return;
         }
 
-        const userId = user.user_id || user.id || ('guest_' + Date.now());
-        const email = user.email || '';
         const returnUrl = encodeURIComponent('http://127.0.0.1:8001/#payment_success');
         const infinityFreeUrl = `https://onlineclothier.infinityfreeapp.com/payment_accept.php?plan_id=${planId}&user_id=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}&return_url=${returnUrl}`;
         window.location.href = infinityFreeUrl;

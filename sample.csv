@@ -1,11 +1,6 @@
 question,answer
 "What is my name?","My name is Akash."
-"What is my favorite fruit?","My favorite fruit is mango."
 "Which college do I study at?","I study at VIT Pune."
 "What is my branch?","My branch is CSE AI and ML."
-"What programming language do I prefer?","I prefer Python."
-"What field am I interested in?","I am interested in Artificial Intelligence and Machine Learning."
-"What is my favorite programming subject?","My favorite programming subject is Machine Learning."
 "What type of projects do I like?","I like AI and machine learning projects."
-"What framework do I use for Python web APIs?","I use FastAPI."
 "What platform do I use for GPU training?","I use Kaggle."
