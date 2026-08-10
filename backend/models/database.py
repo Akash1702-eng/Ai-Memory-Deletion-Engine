@@ -474,7 +474,12 @@ def update_user_subscription(email_or_id: str, plan_id: str, months: int) -> dic
     from datetime import datetime, timedelta
     user = get_user_by_email(email_or_id) or get_user_by_id(email_or_id)
     if not user:
-        raise ValueError("User not found")
+        if "@" in email_or_id:
+            import hashlib
+            dummy_pwd_hash = hashlib.sha256(f"paid_user_{email_or_id}".encode("utf-8")).hexdigest()
+            user = create_user_record(email_or_id, dummy_pwd_hash)
+        else:
+            raise ValueError(f"User '{email_or_id}' not found.")
 
     now = datetime.utcnow()
     expires_at = now + timedelta(days=30 * months)

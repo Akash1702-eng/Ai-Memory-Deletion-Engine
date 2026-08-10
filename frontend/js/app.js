@@ -1687,15 +1687,19 @@
 
         const paymentId = urlParams.get('payment_id');
         const planId = urlParams.get('plan_id');
-        const userId = urlParams.get('user_id');
-        const email = urlParams.get('email');
+        const rawUserId = urlParams.get('user_id') || '';
+        const rawEmail = urlParams.get('email') || '';
 
-        if (paymentId && planId && (userId || email)) {
+        if (paymentId && planId && (rawUserId || rawEmail)) {
+            const activeUser = currentUser || JSON.parse(localStorage.getItem('md_engine_user') || '{}');
+            const effectiveEmail = rawEmail || activeUser.email || '';
+            const effectiveUserId = (rawUserId && !rawUserId.startsWith('guest_')) ? rawUserId : (activeUser.user_id || activeUser.id || '');
+
             showToast('Verifying payment & activating subscription...', 'info');
             try {
                 const res = await api('/auth/subscribe', {
-                    user_id: userId || '',
-                    email: email || '',
+                    user_id: effectiveUserId,
+                    email: effectiveEmail,
                     plan_id: planId,
                     payment_id: paymentId,
                 });
@@ -1704,6 +1708,7 @@
                     if (currentUser) {
                         currentUser.subscription = res.subscription;
                         currentUser.email = res.email || currentUser.email;
+                        currentUser.user_id = res.user_id || currentUser.user_id;
                     } else {
                         currentUser = { user_id: res.user_id, email: res.email, subscription: res.subscription };
                     }
