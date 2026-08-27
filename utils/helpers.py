@@ -82,9 +82,9 @@ def clean_generated_text(text: str) -> str:
 
     markers = [
         "<|im_end|>", "<|im_start|>", "<|endoftext|>",
+        "\nHuman:", "\nHuman-", "\nUser:", "\nUser-", "\nAssistant:", "\nAssistant-", "\nSystem:", "\nSystem-",
+        "\n\nHuman:", "\n\nUser:", "\n\nAssistant:", "\n\nSystem:",
         "Human:", "Human-", "User:", "User-", "Assistant:", "Assistant-", "System:", "System-",
-        "\nHuman", "\nUser", "\nAssistant", "\nSystem",
-        "\n\n",
     ]
     for m in markers:
         if m.lower() in text.lower():

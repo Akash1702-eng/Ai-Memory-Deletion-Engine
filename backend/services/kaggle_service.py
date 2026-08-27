@@ -165,7 +165,7 @@ class KaggleService:
 
         cells = [
             self._md_cell(
-                "# 🧠 AI Memory Engine — LoRA Fine-Tuning (Kaggle GPU)\n"
+                "# AI Memory Engine — LoRA Fine-Tuning (Kaggle GPU)\n"
                 "Auto-generated notebook. Runs fine-tuning on Kaggle GPU, pushes adapter to HF Hub."
             ),
             self._code_cell(
@@ -190,6 +190,8 @@ class KaggleService:
             ),
             self._code_cell(f"""
 import os, json, time, random
+os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
 import numpy as np
 from torch.optim import AdamW
@@ -215,9 +217,9 @@ if torch.cuda.is_available():
     cap = torch.cuda.get_device_capability(0)
     if cap[0] >= 7:  # sm_70+ required by modern PyTorch
         DEVICE = "cuda"
-        print(f"✅ GPU: {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}})")
+        print(f"[INFO] GPU: {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}})")
     else:
-        print(f"⚠️ GPU {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}}) not supported by this PyTorch. Using CPU.")
+        print(f"[WARNING] GPU {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}}) not supported by this PyTorch. Using CPU.")
 else:
     print("No GPU available. Using CPU.")
 random.seed(42)
@@ -231,12 +233,15 @@ if not HF_TOKEN:
     try:
         from kaggle_secrets import UserSecretsClient
         HF_TOKEN = UserSecretsClient().get_secret("HF_TOKEN")
-        print("✅ HF_TOKEN loaded from Kaggle Secrets")
+        print("[INFO] HF_TOKEN loaded from Kaggle Secrets")
     except:
         HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
 HF_TOKEN = HF_TOKEN if (HF_TOKEN and HF_TOKEN.strip()) else None
-print("✅ HF_TOKEN configured" if HF_TOKEN else "⚠️ No HF_TOKEN configured")
+if HF_TOKEN:
+    os.environ["HF_TOKEN"] = HF_TOKEN
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = HF_TOKEN
+print("[INFO] HF_TOKEN configured" if HF_TOKEN else "[WARNING] No HF_TOKEN configured")
 """),
             self._code_cell("""
 # Load training data from HF Hub
@@ -294,11 +299,11 @@ class MemoryDataset(Dataset):
             self._code_cell("""
 # Load model + LoRA
 print(f"Loading {MODEL_NAME}...")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True, token=HF_TOKEN)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
-model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=torch.float32, trust_remote_code=True)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=torch.float32, trust_remote_code=True, token=HF_TOKEN)
 peft_config = LoraConfig(task_type=TaskType.CAUSAL_LM, r=LORA_R, lora_alpha=LORA_ALPHA,
                          lora_dropout=LORA_DROPOUT, bias="none", target_modules=LORA_TARGETS)
 model = get_peft_model(model, peft_config).to(DEVICE)
@@ -399,7 +404,7 @@ results = {
 }
 with open(os.path.join(SAVE_DIR, "training_results.json"), "w") as f:
     json.dump(results, f, indent=2, ensure_ascii=False)
-print(f"✅ Saved to {SAVE_DIR}")
+print(f"[SUCCESS] Saved to {SAVE_DIR}")
 """),
             self._code_cell(f"""
 # Push to HF Hub
@@ -409,9 +414,9 @@ if HF_TOKEN:
     api.create_repo(repo_id="{hf_repo}", repo_type="model", exist_ok=True, private=False)
     api.upload_folder(folder_path=SAVE_DIR, repo_id="{hf_repo}", repo_type="model",
                      commit_message="Upload fine-tuned LoRA adapter from Kaggle")
-    print(f"✅ Uploaded to https://huggingface.co/{hf_repo}")
+    print(f"[SUCCESS] Uploaded to https://huggingface.co/{hf_repo}")
 else:
-    print("⚠️ No HF_TOKEN")
+    print("[WARNING] No HF_TOKEN configured")
 """),
         ]
 
@@ -426,7 +431,7 @@ else:
 
         cells = [
             self._md_cell(
-                "# 🧹 AI Memory Engine — Gradient Ascent Unlearning (Kaggle GPU)\n"
+                "# AI Memory Engine — Gradient Ascent Unlearning (Kaggle GPU)\n"
                 "Auto-generated notebook. Runs gradient ascent on Kaggle GPU, pushes unlearned adapter to HF Hub.\n\n"
                 "**This is actual parameter update unlearning (`-loss.backward()`), not data deletion or prompt filtering.**"
             ),
@@ -452,6 +457,8 @@ else:
             ),
             self._code_cell(f"""
 import os, json, time
+os.environ["PYDEVD_DISABLE_FILE_VALIDATION"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import torch
 import numpy as np
 from torch.optim import AdamW
@@ -472,9 +479,9 @@ if torch.cuda.is_available():
     cap = torch.cuda.get_device_capability(0)
     if cap[0] >= 7:  # sm_70+ required by modern PyTorch
         DEVICE = "cuda"
-        print(f"✅ GPU: {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}})")
+        print(f"[INFO] GPU: {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}})")
     else:
-        print(f"⚠️ GPU {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}}) not supported by this PyTorch. Using CPU.")
+        print(f"[WARNING] GPU {{torch.cuda.get_device_name(0)}} (sm_{{cap[0]}}{{cap[1]}}) not supported by this PyTorch. Using CPU.")
 else:
     print("No GPU available. Using CPU.")
 print(f"Device: {{DEVICE}}")
@@ -486,12 +493,15 @@ if not HF_TOKEN:
     try:
         from kaggle_secrets import UserSecretsClient
         HF_TOKEN = UserSecretsClient().get_secret("HF_TOKEN")
-        print("✅ HF_TOKEN loaded from Kaggle Secrets")
+        print("[INFO] HF_TOKEN loaded from Kaggle Secrets")
     except:
         HF_TOKEN = os.environ.get("HF_TOKEN", "")
 
 HF_TOKEN = HF_TOKEN if (HF_TOKEN and HF_TOKEN.strip()) else None
-print("✅ HF_TOKEN configured" if HF_TOKEN else "⚠️ No HF_TOKEN configured")
+if HF_TOKEN:
+    os.environ["HF_TOKEN"] = HF_TOKEN
+    os.environ["HUGGING_FACE_HUB_TOKEN"] = HF_TOKEN
+print("[INFO] HF_TOKEN configured" if HF_TOKEN else "[WARNING] No HF_TOKEN configured")
 """),
             self._code_cell("""
 # Load forget/retain data from HF
@@ -508,15 +518,15 @@ print(f"Forget: {len(forget_texts)} | Retain: {len(retain_texts)} | Test: {len(t
             self._code_cell("""
 # Load fine-tuned model
 print(f"Loading base: {MODEL_NAME}")
-tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, trust_remote_code=True, token=HF_TOKEN)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 
-base_model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=torch.float32, trust_remote_code=True)
+base_model = AutoModelForCausalLM.from_pretrained(MODEL_NAME, dtype=torch.float32, trust_remote_code=True, token=HF_TOKEN)
 
 print(f"Loading fine-tuned adapter: {FINETUNED_REPO}")
 model = PeftModel.from_pretrained(base_model, FINETUNED_REPO, token=HF_TOKEN).to(DEVICE)
-print("✅ Model loaded")
+print("[INFO] Model loaded successfully")
 """),
             self._code_cell("""
 # Helpers
@@ -542,7 +552,16 @@ def evaluate_query(query):
         labels = inputs["input_ids"][:, 1:]
         probs = torch.softmax(logits, dim=-1)
         conf = probs.gather(2, labels.unsqueeze(-1)).squeeze(-1).mean().item()
-        gen = model.generate(**inputs, max_new_tokens=48, do_sample=False, repetition_penalty=1.2, pad_token_id=tokenizer.pad_token_id)
+        gen = model.generate(
+            **inputs,
+            max_new_tokens=48,
+            do_sample=False,
+            repetition_penalty=1.2,
+            pad_token_id=tokenizer.pad_token_id,
+            temperature=None,
+            top_p=None,
+            top_k=None,
+        )
         answer = tokenizer.decode(gen[0][inputs["input_ids"].shape[1]:], skip_special_tokens=True).strip()
     return {"query": query, "answer": answer, "loss": round(loss, 6), "perplexity": round(ppl, 4), "confidence": round(conf, 6)}
 """),
@@ -570,6 +589,7 @@ trainable_params = [p for p in model.parameters() if p.requires_grad]
 print(f"Trainable parameters for unlearning: {sum(p.numel() for p in trainable_params):,}")
 if not trainable_params:
     raise RuntimeError("No trainable parameters found. Check that the LoRA adapter was loaded correctly.")
+
 optimizer = AdamW(trainable_params, lr=UNLEARN_LR)
 forget_encs = [tokenize(t) for t in forget_texts]
 retain_encs = [tokenize(t) for t in retain_texts]
@@ -583,38 +603,40 @@ print(f"{'='*60}")
 
 for epoch in range(1, UNLEARN_EPOCHS + 1):
     model.train()
-    f_loss, r_loss = 0.0, 0.0
+    optimizer.zero_grad()
 
-    # Gradient ASCENT on forget set
+    # 1. Gradient ASCENT on forget targets (maximize loss)
+    f_loss_sum = 0.0
     for enc in forget_encs:
         ids = enc["input_ids"].to(DEVICE)
         mask = enc["attention_mask"].to(DEVICE)
         out = model(input_ids=ids, attention_mask=mask, labels=ids)
-        neg_loss = -out.loss  # NEGATE for gradient ascent
-        optimizer.zero_grad()
+        # Negate loss to ascend gradients on target information
+        neg_loss = -out.loss / max(len(forget_encs), 1)
         neg_loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        f_loss += out.loss.item()
+        f_loss_sum += out.loss.item()
 
-    # Gradient DESCENT on retain set
-    for enc in retain_encs:
-        ids = enc["input_ids"].to(DEVICE)
-        mask = enc["attention_mask"].to(DEVICE)
-        out = model(input_ids=ids, attention_mask=mask, labels=ids)
-        optimizer.zero_grad()
-        out.loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-        optimizer.step()
-        r_loss += out.loss.item()
+    # 2. Balanced regularizer on retain set (preserve general utility without overpowering forget ascent)
+    r_loss_sum = 0.0
+    if retain_encs:
+        for enc in retain_encs:
+            ids = enc["input_ids"].to(DEVICE)
+            mask = enc["attention_mask"].to(DEVICE)
+            out = model(input_ids=ids, attention_mask=mask, labels=ids)
+            reg_loss = (0.20 * out.loss) / max(len(retain_encs), 1)
+            reg_loss.backward()
+            r_loss_sum += out.loss.item()
 
-    avg_f = f_loss / len(forget_encs)
-    avg_r = r_loss / max(len(retain_encs), 1)
+    torch.nn.utils.clip_grad_norm_(trainable_params, 1.0)
+    optimizer.step()
+
+    avg_f = f_loss_sum / max(len(forget_encs), 1)
+    avg_r = (r_loss_sum / max(len(retain_encs), 1)) if retain_encs else 0.0
     loss_curve.append({"epoch": epoch, "forget_loss": round(avg_f, 6), "retain_loss": round(avg_r, 6)})
     print(f"Epoch {epoch}/{UNLEARN_EPOCHS} — forget={avg_f:.6f} (↑), retain={avg_r:.6f}")
 
 duration = time.time() - start_time
-print(f"\\n✅ Done in {duration:.1f}s")
+print(f"\\n[SUCCESS] Completed in {duration:.1f}s")
 """),
             self._code_cell("""
 # AFTER metrics
@@ -638,7 +660,7 @@ for b, a in zip(before_results, after_results):
         "before_perplexity": b["perplexity"], "after_perplexity": a["perplexity"],
         "forgotten": forgotten,
     })
-    status = "✅ FORGOTTEN" if forgotten else "❌ NOT FORGOTTEN"
+    status = "FORGOTTEN" if forgotten else "RETAINED"
     print(f"  {b['query'][:30]} — {status} (Δloss={a['loss']-b['loss']:+.4f})")
 
 if comparisons:
@@ -685,7 +707,7 @@ preds = clf.predict(X)
 mia_acc = accuracy_score(y, preds)
 mia_f1 = f1_score(y, preds, zero_division=0)
 print(f"MIA — Accuracy: {mia_acc:.1%}, F1: {mia_f1:.4f}")
-print("✅ Good forgetting!" if mia_acc < 0.7 else "⚠️ May retain some info")
+print("[INFO] Target forgetting threshold achieved." if mia_acc < 0.7 else "[WARNING] Model may retain some information.")
 """),
             self._code_cell(f"""
 # Save + upload
@@ -716,9 +738,9 @@ if HF_TOKEN:
     api.create_repo(repo_id="{ul_repo}", repo_type="model", exist_ok=True, private=False)
     api.upload_folder(folder_path=SAVE_DIR, repo_id="{ul_repo}", repo_type="model",
                      commit_message="Upload unlearned LoRA adapter from Kaggle")
-    print(f"✅ Uploaded to https://huggingface.co/{ul_repo}")
+    print(f"[SUCCESS] Uploaded to https://huggingface.co/{ul_repo}")
 else:
-    print("⚠️ No HF_TOKEN")
+    print("[WARNING] No HF_TOKEN configured")
 """),
         ]
 
@@ -791,26 +813,50 @@ else:
 
         try:
             status_result = api.kernels_status(kernel_slug)
-            # status_result is a dict or object with 'status' field
-            if hasattr(status_result, 'status'):
-                kaggle_status = status_result.status
-            elif isinstance(status_result, dict):
-                kaggle_status = status_result.get("status", "unknown")
+        except Exception as first_err:
+            # On auth/bad-request errors, invalidate API cache and retry once
+            err_str = str(first_err).lower()
+            is_auth_error = any(
+                phrase in err_str
+                for phrase in ["401", "403", "400", "unauthorized", "bad request", "permission"]
+            )
+            if is_auth_error:
+                logger.warning(
+                    "Kaggle status check auth error, re-authenticating: %s", first_err
+                )
+                self._api = None  # Force re-auth on next _get_api() call
+                try:
+                    api = self._get_api()
+                    status_result = api.kernels_status(kernel_slug)
+                except Exception as retry_err:
+                    logger.error("Kaggle status retry also failed: %s", retry_err)
+                    return {
+                        "job_type": job_type,
+                        "kernel_slug": kernel_slug,
+                        "status": "error",
+                        "has_results": False,
+                        "message": f"Failed to check status: {str(retry_err)}",
+                    }
             else:
-                kaggle_status = str(status_result)
+                logger.error("Failed to check Kaggle status: %s", first_err)
+                return {
+                    "job_type": job_type,
+                    "kernel_slug": kernel_slug,
+                    "status": "error",
+                    "has_results": False,
+                    "message": f"Failed to check status: {str(first_err)}",
+                }
 
-            kaggle_status = str(kaggle_status).lower()
-            logger.info("Kaggle status for %s: %s", kernel_slug, kaggle_status)
+        # Parse status from result
+        if hasattr(status_result, 'status'):
+            kaggle_status = status_result.status
+        elif isinstance(status_result, dict):
+            kaggle_status = status_result.get("status", "unknown")
+        else:
+            kaggle_status = str(status_result)
 
-        except Exception as e:
-            logger.error("Failed to check Kaggle status: %s", e)
-            return {
-                "job_type": job_type,
-                "kernel_slug": kernel_slug,
-                "status": "error",
-                "has_results": False,
-                "message": f"Failed to check status: {str(e)}",
-            }
+        kaggle_status = str(kaggle_status).lower()
+        logger.info("Kaggle status for %s: %s", kernel_slug, kaggle_status)
 
         # Map / Normalize Kaggle statuses (e.g. 'kernelworkerstatus.running' -> 'running')
         if "complete" in kaggle_status or "completed" in kaggle_status:
@@ -900,6 +946,14 @@ else:
             chat_service = get_chat_service()
             if job_type == "finetune":
                 chat_service.reload_adapter("finetuned")
+                # Clear stale forgotten/unlearning state after successful re-fine-tuning
+                try:
+                    from backend.models.database import clear_forgotten_records, clear_unlearning_logs
+                    clear_forgotten_records()
+                    clear_unlearning_logs()
+                    logger.info("Cleared forgotten records and unlearning logs after fine-tuning completion.")
+                except Exception as e2:
+                    logger.warning("Failed to clear forgotten state after fine-tuning: %s", e2)
             else:
                 chat_service.reload_adapter("unlearned")
         except Exception as e:

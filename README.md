@@ -1,10 +1,10 @@
-# 🧠 AI Memory Engine — Machine Unlearning Dashboard
+# AI Memory Engine — Machine Unlearning Dashboard
 
 A full-stack application demonstrating **Gradient Ascent Machine Unlearning** on large language models. Fine-tune Qwen2.5-1.5B-Instruct on personal data, then selectively make it *forget* specific information with verified, real parameter updates.
 
 ---
 
-## ✨ Key Features
+## Key Features
 
 | Feature | Description |
 |---------|-------------|
@@ -21,7 +21,7 @@ A full-stack application demonstrating **Gradient Ascent Machine Unlearning** on
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -50,7 +50,7 @@ A full-stack application demonstrating **Gradient Ascent Machine Unlearning** on
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 Ai Memory Engine/
@@ -104,7 +104,7 @@ Ai Memory Engine/
 
 ---
 
-## 🚀 Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 
@@ -142,37 +142,37 @@ Open **http://localhost:8000** in your browser.
 
 ---
 
-## 📋 Usage Workflow
+## Usage Workflow
 
 ### Step 1: Upload Training Data
-- Click **📁 Upload CSV** or **📦 Load Built-in Dataset**
+- Click **Upload CSV** or **Load Built-in Dataset**
 - CSV requires `question` and `answer` columns (+ optional `category`)
 
 ### Step 2: Fine-Tune
-- Click **🔧 Fine-Tune** → Set epochs/LR → **🚀 Start Fine-Tuning**
+- Click **Fine-Tune** → Set epochs/LR → **Start Fine-Tuning**
 - Saves LoRA adapter to `models/checkpoints/finetuned/`
 
 ### Step 3: Test Fine-Tuned Model
-- Switch model selector to **🟢 Fine-Tuned**
+- Switch model selector to **Fine-Tuned**
 - Ask questions like "What is my name?" — model should remember
 
 ### Step 4: Select Memories to Forget
-- Click **🗂️ Select Memories** → Check records to forget → **🧹 Create Forget/Retain Sets**
+- Click **Select Memories** → Check records to forget → **Create Forget/Retain Sets**
 
 ### Step 5: Run Unlearning
-- Click **🧹 Unlearn** → Review auto-populated forget/retain texts → **🧠 Run Gradient Ascent**
+- Click **Unlearn** → Review auto-populated forget/retain texts → **Run Gradient Ascent**
 - View loss curves and before/after comparisons
 
 ### Step 6: Verify Forgetting
-- Switch to **🟠 Unlearned** model and ask the same questions
-- Click **⚖️ Compare All Models** for side-by-side verification
+- Switch to **Unlearned** model and ask the same questions
+- Click **Compare All Models** for side-by-side verification
 
 ### Step 7: Upload to Hugging Face
-- Click **🤗 Hugging Face** → Select adapter type → **⬆️ Upload to HF**
+- Click **Hugging Face** → Select adapter type → **Upload to HF**
 
 ---
 
-## 📓 Kaggle Notebooks
+## Kaggle Notebooks
 
 ### Fine-Tuning (`notebooks/fine_tune_kaggle.ipynb`)
 1. Upload to Kaggle
@@ -190,7 +190,7 @@ Open **http://localhost:8000** in your browser.
 
 ---
 
-## 🔬 How Machine Unlearning Works
+## How Machine Unlearning Works
 
 ### Gradient Ascent (The Core Algorithm)
 
@@ -207,32 +207,32 @@ optimizer.step()
 ```
 
 ### What This Is NOT
-- ❌ **Deleting training data** — that's data removal, not unlearning
-- ❌ **Prompting the model to forget** — that's prompt engineering
-- ❌ **Filtering model outputs** — that's output censorship
-- ❌ **Fabricating evaluation results** — all metrics are from actual inference
+- **Deleting training data** — that's data removal, not unlearning
+- **Prompting the model to forget** — that's prompt engineering
+- **Filtering model outputs** — that's output censorship
+- **Fabricating evaluation results** — all metrics are from actual inference
 
 ### What This IS
-- ✅ **Actual parameter updates** via gradient ascent
-- ✅ **Model weights are modified** to increase loss on forgotten data
-- ✅ **Verified forgetting** with before/after metrics comparison
-- ✅ **Utility preservation** via gradient descent on retain set
+- **Actual parameter updates** via gradient ascent
+- **Model weights are modified** to increase loss on forgotten data
+- **Verified forgetting** with before/after metrics comparison
+- **Utility preservation** via gradient descent on retain set
 
 ---
 
-## 📊 Evaluation Metrics
+## Evaluation Metrics
 
 | Metric | Before Unlearning | After Unlearning | Goal |
 |--------|-------------------|------------------|------|
-| **Loss on Forget Set** | Low (memorized) | High (forgotten) | ↑ Increase |
-| **Perplexity** | Low | High | ↑ Increase |
-| **Confidence** | High | Low | ↓ Decrease |
-| **MIA Accuracy** | ~100% | ~50% | ↓ Random guess |
-| **Retain Set Loss** | Low | Low (stable) | → No change |
+| **Loss on Forget Set** | Low (memorized) | High (forgotten) | Increase |
+| **Perplexity** | Low | High | Increase |
+| **Confidence** | High | Low | Decrease |
+| **MIA Accuracy** | ~100% | ~50% | Random guess (~50%) |
+| **Retain Set Loss** | Low | Low (stable) | No change |
 
 ---
 
-## 🛠️ API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -251,7 +251,7 @@ optimizer.step()
 
 ---
 
-## 📚 References
+## References
 
 - Jang et al., *"Knowledge Unlearning for Mitigating Language Models' Memorization"* (2022)
 - Bourtoule et al., *"Machine Unlearning"* (2021)
@@ -259,6 +259,6 @@ optimizer.step()
 
 ---
 
-## 📄 License
+## License
 
 This project is for educational and research purposes.

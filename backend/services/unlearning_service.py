@@ -133,6 +133,8 @@ class UnlearningService:
         test_queries: Optional[list[str]] = None,
         num_epochs: Optional[int] = None,
         learning_rate: Optional[float] = None,
+        epochs: Optional[int] = None,
+        **kwargs,
     ) -> dict:
         """
         Start gradient ascent unlearning on Kaggle GPU.
@@ -158,9 +160,10 @@ class UnlearningService:
         # Override settings if user provided custom values
         from config.settings import get_settings
         settings = get_settings()
-        if num_epochs:
-            settings.unlearning_epochs = num_epochs
-        if learning_rate:
+        effective_epochs = epochs if epochs is not None else num_epochs
+        if effective_epochs is not None:
+            settings.unlearning_epochs = effective_epochs
+        if learning_rate is not None:
             settings.unlearning_learning_rate = learning_rate
 
         # Enrich forget texts: match against training DB and build proper Q&A pairs
@@ -196,12 +199,7 @@ class UnlearningService:
             "job_type": job["job_type"],
             "kernel_slug": job["kernel_slug"],
             "status": job["status"],
-            "message": (
-                f"Gradient Ascent notebook submitted to Kaggle GPU. "
-                f"Forgetting {len(enriched_forget)} texts ({len(matched_ids)} matched from DB) "
-                f"with {len(final_retain)} retain texts for {settings.unlearning_epochs} epochs. "
-                f"Poll /api/run-unlearning/status for updates."
-            ),
+            "message": "Gradient Ascent unlearning executing on Kaggle GPU.",
         }
 
     async def check_unlearning_status(self) -> dict:

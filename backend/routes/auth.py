@@ -144,7 +144,7 @@ async def subscribe_user(request: SubscribeRequest):
             "user_id": updated["user_id"],
             "email": updated["email"],
             "subscription": sub_info,
-            "message": f"🎉 Payment verified! {months}-Month Premium Subscription activated.",
+            "message": f"Payment verified! {months}-Month Premium Subscription activated.",
         }
     except Exception as e:
         logger.error("Subscription activation failed: %s", e)

@@ -14,10 +14,11 @@ router = APIRouter(prefix="/api", tags=["upload"])
 
 
 @router.post("/upload-csv", response_model=UploadResponse)
+@router.post("/dataset/upload", response_model=UploadResponse)
 async def upload_csv(file: UploadFile = File(...)):
     """Upload a CSV file with Q&A training data."""
-    if not file.filename or not file.filename.endswith(".csv"):
-        raise HTTPException(status_code=400, detail="Only .csv files are accepted.")
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only .csv files are supported. Please upload a valid CSV dataset.")
 
     try:
         content = await file.read()

@@ -15,8 +15,15 @@ logger = get_logger(__name__)
 DB_PATH = "./data/local_app.db"
 
 
-def init_local_db():
+_DB_INITIALIZED = False
+
+
+def init_local_db(force: bool = False):
     """Initialize the SQLite database with required tables."""
+    global _DB_INITIALIZED
+    if _DB_INITIALIZED and not force:
+        return
+
     os.makedirs("./data", exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -122,12 +129,14 @@ def init_local_db():
 
     conn.commit()
     conn.close()
+    _DB_INITIALIZED = True
     logger.info("Local database initialized at %s", DB_PATH)
 
 
 def get_db_connection():
     """Return a SQLite connection with row factory."""
-    init_local_db()
+    if not _DB_INITIALIZED:
+        init_local_db()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
@@ -290,6 +299,21 @@ def save_unlearning_log(
     conn.close()
 
 
+def get_unlearning_logs(limit: int = 10) -> list[dict]:
+    """Return recent unlearning audit logs."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id, category, num_samples_forgotten, model_version_before, model_version_after, "
+        "loss_before, loss_after, epochs_run, duration_seconds, status, created_at "
+        "FROM unlearning_logs ORDER BY created_at DESC LIMIT ?",
+        (limit,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
 # ── Forgotten Records ────────────────────────────────────────────────────────
 
 def mark_records_as_forgotten(record_ids: list[int], forget_texts: Optional[list[str]] = None):
@@ -334,6 +358,30 @@ def clear_forgotten_records():
     logger.info("Cleared all forgotten record markers.")
 
 
+def delete_training_records_by_ids(record_ids: list[int]):
+    """Delete training records completely from dataset."""
+    if not record_ids:
+        return
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    placeholders = ",".join("?" for _ in record_ids)
+    cursor.execute(f"DELETE FROM training_records WHERE id IN ({placeholders})", record_ids)
+    conn.commit()
+    conn.close()
+    logger.info("Deleted %d records from training_records dataset.", len(record_ids))
+
+
+def delete_unlearning_logs_by_topic(topic: str):
+    """Delete matching unlearning logs."""
+    if not topic:
+        return
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM unlearning_logs WHERE LOWER(category) LIKE ?", (f"%{topic.lower()}%",))
+    conn.commit()
+    conn.close()
+
+
 def get_forgotten_texts() -> list[str]:
     """Return the forget_text strings from all forgotten records."""
     conn = get_db_connection()
@@ -342,6 +390,28 @@ def get_forgotten_texts() -> list[str]:
     texts = [row["forget_text"] for row in cursor.fetchall()]
     conn.close()
     return texts
+
+
+def clear_unlearning_logs():
+    """Clear all unlearning audit logs (e.g. after re-fine-tuning)."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM unlearning_logs")
+    conn.commit()
+    conn.close()
+    logger.info("Cleared all unlearning audit logs.")
+
+
+def clear_all_training_data():
+    """Delete all training records, forgotten markers, and unlearning logs in one transaction."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM training_records")
+    cursor.execute("DELETE FROM forgotten_records")
+    cursor.execute("DELETE FROM unlearning_logs")
+    conn.commit()
+    conn.close()
+    logger.info("Cleared all training data, forgotten markers, and unlearning logs.")
 
 
 # ── App Settings (Compute Target) ────────────────────────────────────────────
@@ -416,6 +486,16 @@ def get_user_by_id(user_id: str) -> Optional[dict]:
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM users WHERE id=?", (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def get_latest_active_user() -> Optional[dict]:
+    """Retrieve the most recently active or created user."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users ORDER BY created_at DESC LIMIT 1")
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None

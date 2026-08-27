@@ -33,6 +33,11 @@ async def lifespan(app: FastAPI):
     # Initialize database
     init_local_db()
 
+    # Set Hugging Face environment variable if configured
+    if settings.hf_token and settings.hf_token.strip():
+        os.environ["HF_TOKEN"] = settings.hf_token.strip()
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = settings.hf_token.strip()
+
     # Create data directories
     os.makedirs(settings.upload_dir, exist_ok=True)
     os.makedirs(settings.dataset_dir, exist_ok=True)

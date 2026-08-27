@@ -7,43 +7,81 @@
     <meta name="description" content="Fine-tune, unlearn, and compare LLMs with LoRA adapters. Gradient Ascent Machine Unlearning with real evaluation metrics." />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    <link rel="stylesheet" href="/css/style.css?v=7.0" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link rel="stylesheet" href="/css/style.css?v=24.0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
+
 <body>
 <div class="app" id="app">
 
     <!-- ═══════ MOBILE TOGGLE ═══════ -->
-    <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle sidebar">☰</button>
+    <button class="mobile-toggle" id="mobile-toggle" aria-label="Toggle sidebar">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
 
     <!-- ═══════ SIDEBAR ═══════ -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <div class="logo-icon">🧠</div>
+                <div class="logo-icon">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3 4 4 0 0 0 2 3.5 3 3 0 0 0-1 2.5 4 4 0 0 0 4 4h4a4 4 0 0 0 4-4 3 3 0 0 0-1-2.5 4 4 0 0 0 2-3.5 3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z"/><path d="M12 2v20"/><path d="M4 12h16"/></svg>
+                </div>
                 <div>
                     <h1>MD Engine</h1>
                     <div class="logo-sub">Machine Unlearning</div>
                 </div>
             </div>
-            <button class="btn-new-chat" id="btn-new-chat">✨ New Chat</button>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <button class="btn-sidebar-collapse" id="btn-sidebar-collapse" title="Slide Sidebar (Collapse)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19l-7-7 7-7"/><path d="M18 19l-7-7 7-7"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <div style="padding: 0 16px 12px;">
+            <button class="btn-new-chat" id="btn-new-chat">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>New Chat</span>
+            </button>
         </div>
 
         <nav class="sidebar-nav">
             <div class="nav-section-title">Pipeline</div>
-            <div class="nav-item" data-action="upload"><span class="nav-icon">📁</span> Upload CSV</div>
-            <div class="nav-item" data-action="finetune"><span class="nav-icon">🔧</span> Fine-Tune</div>
-            <div class="nav-item" data-action="memories"><span class="nav-icon">🗂️</span> Select Memories</div>
-            <div class="nav-item" data-action="unlearn"><span class="nav-icon">🧹</span> Unlearn</div>
-            <div class="nav-item" data-action="evaluate"><span class="nav-icon">📊</span> Evaluate</div>
-            <div class="nav-item" data-action="huggingface"><span class="nav-icon">🤗</span> Hugging Face</div>
+            <div class="nav-item" data-action="upload">
+                <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+                <span>Upload CSV</span>
+            </div>
+            <div class="nav-item" data-action="finetune">
+                <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span>
+                <span>Fine-Tune</span>
+            </div>
+            <div class="nav-item" data-action="unlearn">
+                <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M18 13L11 6"/></svg></span>
+                <span>Unlearn</span>
+            </div>
+            <div class="nav-item" data-action="evaluate">
+                <span class="nav-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span>
+                <span>Evaluate</span>
+            </div>
 
             <div class="nav-section-title">Quick Prompts</div>
-            <div class="nav-item quick-prompt" data-prompt="What is my name?"><span class="nav-icon">💬</span> "What is my name?"</div>
-            <div class="nav-item quick-prompt" data-prompt="When is my birthday?"><span class="nav-icon">💬</span> "When is my birthday?"</div>
-            <div class="nav-item quick-prompt" data-prompt="Where do I live?"><span class="nav-icon">💬</span> "Where do I live?"</div>
-            <div class="nav-item quick-prompt" data-prompt="What is my blood group?"><span class="nav-icon">💬</span> "What is my blood group?"</div>
+            <div class="nav-item quick-prompt" data-prompt="What is my name?">
+                <span class="nav-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <span>"What is my name?"</span>
+            </div>
+            <div class="nav-item quick-prompt" data-prompt="When is my birthday?">
+                <span class="nav-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <span>"When is my birthday?"</span>
+            </div>
+            <div class="nav-item quick-prompt" data-prompt="Where do I live?">
+                <span class="nav-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <span>"Where do I live?"</span>
+            </div>
+            <div class="nav-item quick-prompt" data-prompt="What is my blood group?">
+                <span class="nav-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
+                <span>"What is my blood group?"</span>
+            </div>
         </nav>
 
         <div class="sidebar-footer">
@@ -60,20 +98,29 @@
             <!-- Chat Header -->
             <div class="chat-header">
                 <div class="chat-header-left">
+                    <button class="btn-sidebar-expand" id="btn-sidebar-expand" title="Open Sidebar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
                     <span class="chat-header-title">Chat</span>
-                    <span style="font-size:12px;color:var(--text-dim);margin-left:8px;">✨ Auto Mode</span>
+                    <span class="chat-mode-badge" style="font-size:12px;color:var(--text-dim);margin-left:8px;">Auto Mode</span>
                 </div>
                 <div style="display:flex;align-items:center;gap:12px;">
+                    <button class="btn-theme-toggle" id="btn-theme-toggle" title="Toggle Theme (Black/White)" onclick="App.toggleTheme()">
+                        <svg class="theme-icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <svg class="theme-icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+                    </button>
                     <span class="chat-header-version" id="header-version">v1.0 — Qwen2.5</span>
-                    <button class="btn-account" id="btn-account-header">👤 Sign In</button>
-                    <button class="btn-logout" id="btn-logout" style="display:none" onclick="App.logout()">🚪 Logout</button>
+                    <button class="btn-account" id="btn-account-header">Sign In</button>
+                    <button class="btn-logout" id="btn-logout" style="display:none" onclick="App.logout()">Logout</button>
                 </div>
             </div>
 
             <!-- Chat Messages -->
             <div class="chat-messages" id="chat-messages">
                 <div class="welcome-state" id="welcome-state">
-                    <div class="welcome-icon">🧠</div>
+                    <div class="welcome-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3 4 4 0 0 0 2 3.5 3 3 0 0 0-1 2.5 4 4 0 0 0 4 4h4a4 4 0 0 0 4-4 3 3 0 0 0-1-2.5 4 4 0 0 0 2-3.5 3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z"/><path d="M12 2v20"/><path d="M4 12h16"/></svg>
+                    </div>
                     <h2>AI Memory Deletion Engine</h2>
                     <p>
                         Fine-tune <strong>Qwen2.5</strong> on personal data, then use <strong>Gradient Ascent</strong>
@@ -81,22 +128,43 @@
                         it combines model knowledge with stored memories for the best answer.
                     </p>
                     <div class="welcome-actions">
-                        <button class="welcome-action-btn" onclick="App.openPanel('upload')">📁 Upload CSV</button>
-                        <button class="welcome-action-btn" onclick="App.openPanel('finetune')">🔧 Fine-Tune</button>
-                        <button class="welcome-action-btn" onclick="App.openPanel('unlearn')">🧹 Unlearn</button>
-                        <button class="welcome-action-btn" onclick="App.sendMessage('What is my name?')">💬 Ask a Question</button>
+                        <button class="welcome-action-btn" onclick="App.openPanel('upload')">Upload CSV</button>
+                        <button class="welcome-action-btn" onclick="App.openPanel('finetune')">Fine-Tune</button>
+                        <button class="welcome-action-btn" onclick="App.openPanel('unlearn')">Unlearn</button>
+                        <button class="welcome-action-btn" onclick="App.sendMessage('What is my name?')">Ask a Question</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Chat Input -->
+            <!-- Live Job Progress Area (Fine-Tune / Unlearn / Evaluation) - Below Chat -->
+            <div class="live-progress-area" id="live-progress-area" style="display:none;"></div>
+
+            <!-- Chat Input Area -->
             <div class="chat-input-area">
                 <div class="chat-input-wrapper">
-                    <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
-                    <button class="btn-send" id="btn-send" title="Send">▶</button>
+                    <!-- Hidden File Input for CSV upload -->
+                    <input type="file" id="chat-file-input" accept=".csv" style="display:none" onchange="App.handleChatFileUpload(event)" />
+
+                    <!-- Upload CSV Button -->
+                    <button class="btn-chat-tool btn-chat-upload" id="btn-chat-upload" title="Upload CSV / Dataset" onclick="App.triggerChatUpload()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                    </button>
+
+                    <!-- Textarea -->
+                    <textarea id="chat-input" placeholder="Ask a question in natural language..." rows="1"></textarea>
+
+                    <!-- Voice Microphone Button -->
+                    <button class="btn-chat-tool btn-chat-mic" id="btn-chat-mic" title="Voice Input (Click to speak)" onclick="App.toggleVoiceInput()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    </button>
+
+                    <!-- Send Button -->
+                    <button class="btn-send" id="btn-send" title="Send message">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
                 </div>
                 <div class="chat-input-hint">
-                    Shift+Enter for new line · Auto mode uses fine-tuned model + memory context
+                    
                 </div>
             </div>
         </div>
@@ -105,15 +173,15 @@
     <!-- ═══════ PANEL: CSV UPLOAD ═══════ -->
     <div class="action-panel" id="panel-upload">
         <div class="panel-header">
-            <span class="panel-title">📁 Upload Training Data</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
+            <span class="panel-title">Upload Training Data</span>
+            <button class="panel-close" onclick="App.closePanel()">&times;</button>
         </div>
         <div class="panel-body">
             <div class="form-group">
                 <label class="form-label">CSV File</label>
                 <div class="dropzone" id="dropzone">
                     <div class="dropzone-text">
-                        <span style="font-size:32px;">📄</span>
+                        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                         <p>Drag & drop CSV here or click to select</p>
                         <p class="form-hint">Columns: question/instruction, answer/output, category (optional)</p>
                     </div>
@@ -122,7 +190,7 @@
             </div>
 
             <button class="btn btn-secondary btn-full" id="btn-load-builtin" style="margin-bottom:12px;">
-                📦 Load Built-in Dataset (44 Q&A pairs)
+                Load Built-in Dataset (44 Q&A pairs)
             </button>
 
             <div id="upload-preview"></div>
@@ -133,8 +201,8 @@
     <!-- ═══════ PANEL: FINE-TUNE ═══════ -->
     <div class="action-panel" id="panel-finetune">
         <div class="panel-header">
-            <span class="panel-title">🔧 Fine-Tune Model</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
+            <span class="panel-title">Fine-Tune Model</span>
+            <button class="panel-close" onclick="App.closePanel()">&times;</button>
         </div>
         <div class="panel-body">
             <div class="form-group">
@@ -154,59 +222,23 @@
                 <div class="form-hint">r=16, alpha=32, target: q_proj, k_proj, v_proj, o_proj</div>
             </div>
             <button class="btn btn-primary btn-full" id="btn-train" onclick="App.startTraining()">
-                🚀 Start Fine-Tuning
+                Start Fine-Tuning
             </button>
             <div id="train-result" style="margin-top:16px;"></div>
-        </div>
-    </div>
-
-    <!-- ═══════ PANEL: MEMORY SELECTION ═══════ -->
-    <div class="action-panel" id="panel-memories">
-        <div class="panel-header">
-            <span class="panel-title">🗂️ Select Memories to Forget</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
-        </div>
-        <div class="panel-body">
-            <div class="memory-controls">
-                <div class="memory-stats" id="memory-stats">
-                    <span class="memory-stat">Total: <strong>0</strong></span>
-                    <span class="memory-stat forget-count">Forget: <strong>0</strong></span>
-                    <span class="memory-stat retain-count">Retain: <strong>0</strong></span>
-                </div>
-                <div class="memory-filter">
-                    <label class="form-label">Filter by Category</label>
-                    <select class="form-select" id="memory-category-filter">
-                        <option value="all">All Categories</option>
-                    </select>
-                </div>
-            </div>
-            <div class="memory-actions">
-                <button class="btn btn-secondary" onclick="App.selectAllVisible()">☑ Select All Visible</button>
-                <button class="btn btn-secondary" onclick="App.deselectAll()">☐ Deselect All</button>
-            </div>
-            <div class="memory-list" id="memory-list">
-                <p class="form-hint">Loading memories...</p>
-            </div>
-            <div class="divider"></div>
-            <button class="btn btn-primary btn-full" id="btn-create-forget-set" onclick="App.createForgetSet()">
-                🧹 Create Forget/Retain Sets
-            </button>
-            <div id="forget-set-result" style="margin-top:12px;"></div>
         </div>
     </div>
 
     <!-- ═══════ PANEL: UNLEARN ═══════ -->
     <div class="action-panel" id="panel-unlearn">
         <div class="panel-header">
-            <span class="panel-title">🧹 Gradient Ascent Unlearning</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
+            <span class="panel-title">Gradient Ascent Unlearning</span>
+            <button class="panel-close" onclick="App.closePanel()">&times;</button>
         </div>
         <div class="panel-body">
             <div class="form-group">
                 <label class="form-label">Texts to Forget</label>
                 <textarea class="form-textarea" id="unlearn-texts" rows="6"
-                    placeholder="One text per line. These will be forgotten via gradient ascent."></textarea>
-                <div class="form-hint">Or use the Memory Selection panel to auto-populate.</div>
+                    placeholder="One text or question per line. These will be forgotten via gradient ascent."></textarea>
             </div>
             <div class="form-group">
                 <label class="form-label">Retain Texts (optional)</label>
@@ -227,7 +259,7 @@
                 <input type="text" class="form-input" id="unlearn-lr" value="1e-4" />
             </div>
             <button class="btn btn-primary btn-full" id="btn-unlearn" onclick="App.startUnlearning()">
-                🧠 Run Gradient Ascent
+                Run Gradient Ascent
             </button>
             <div id="unlearn-result" style="margin-top:16px;"></div>
         </div>
@@ -236,16 +268,15 @@
     <!-- ═══════ PANEL: EVALUATION ═══════ -->
     <div class="action-panel" id="panel-evaluate">
         <div class="panel-header">
-            <span class="panel-title">📊 Before vs After Evaluation</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
+            <span class="panel-title">Model Evaluation (Fine-Tuned vs. Unlearned)</span>
+            <button class="panel-close" onclick="App.closePanel()">&times;</button>
         </div>
         <div class="panel-body">
             <div class="form-group">
                 <label class="form-label">How It Works</label>
                 <div class="form-hint">
-                    Runs the same queries against the <strong>Fine-Tuned</strong> model (before unlearning) 
-                    and the <strong>Unlearned</strong> model (after unlearning), then compares answers, 
-                    loss, confidence, and perplexity to prove forgetting effectiveness.
+                    Evaluates test queries on the <strong>Fine-Tuned</strong> model (Before) and compares with the <strong>Unlearned</strong> model (After Gradient Ascent). 
+                    Compares Loss, Confidence, Perplexity, and Membership Inference Attack (MIA) resistance.
                 </div>
             </div>
             <div class="form-group">
@@ -256,40 +287,15 @@ When is my birthday?
 Where do I live?
 What is my blood group?</textarea>
             </div>
+            <div class="form-group">
+                <label class="form-label">Recipient Email (Report will be emailed automatically)</label>
+                <input type="email" class="form-input" id="eval-user-email" placeholder="e.g. user@example.com (will send report via email)" />
+                <div class="form-hint" style="margin-top:4px;">A full audit receipt with mathematical proof & before/after comparisons will be emailed to this address upon completion.</div>
+            </div>
             <button class="btn btn-primary btn-full" id="btn-evaluate" onclick="App.startEvaluation()">
-                📊 Run Before vs After Evaluation
+                Run Model Evaluation & Send Report
             </button>
             <div id="eval-result" style="margin-top:16px;"></div>
-        </div>
-    </div>
-
-    <!-- ═══════ PANEL: HUGGING FACE ═══════ -->
-    <div class="action-panel" id="panel-huggingface">
-        <div class="panel-header">
-            <span class="panel-title">🤗 Hugging Face Hub</span>
-            <button class="panel-close" onclick="App.closePanel()">✕</button>
-        </div>
-        <div class="panel-body">
-            <div class="form-group">
-                <label class="form-label">Adapter Type</label>
-                <select class="form-select" id="hf-adapter-type">
-                    <option value="finetuned">Fine-Tuned Adapter</option>
-                    <option value="unlearned">Unlearned Adapter</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Custom Repo ID (optional)</label>
-                <input type="text" class="form-input" id="hf-repo-id" placeholder="username/repo-name" />
-            </div>
-            <div style="display:flex;gap:12px;margin-bottom:16px;">
-                <button class="btn btn-primary" style="flex:1" onclick="App.hfUpload()">
-                    ⬆️ Upload to HF
-                </button>
-                <button class="btn btn-secondary" style="flex:1" onclick="App.hfDownload()">
-                    ⬇️ Download from HF
-                </button>
-            </div>
-            <div id="hf-result"></div>
         </div>
     </div>
 
@@ -299,7 +305,9 @@ What is my blood group?</textarea>
 <div class="landing-overlay" id="landing-overlay">
     <div class="landing-nav">
         <div class="landing-logo">
-            <span class="logo-icon">🧠</span>
+            <span class="logo-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a3 3 0 0 0-3 3 4 4 0 0 0 2 3.5 3 3 0 0 0-1 2.5 4 4 0 0 0 4 4h4a4 4 0 0 0 4-4 3 3 0 0 0-1-2.5 4 4 0 0 0 2-3.5 3 3 0 0 0-3-3V6a4 4 0 0 0-4-4z"/><path d="M12 2v20"/><path d="M4 12h16"/></svg>
+            </span>
             <span class="logo-text">AI Memory Deletion Engine</span>
         </div>
         <div class="landing-nav-actions">
@@ -309,7 +317,7 @@ What is my blood group?</textarea>
     </div>
 
     <div class="hero-section">
-        <span class="hero-badge">✨ Machine Unlearning & LoRA Engine</span>
+        <span class="hero-badge">Machine Unlearning & LoRA Engine</span>
         <h1 class="hero-title">Take Control of What Your LLM Remembers & Forgets</h1>
         <p class="hero-subtitle">
             Fine-tune Qwen2.5 on personal knowledge, then execute targeted <strong>Gradient Ascent Machine Unlearning</strong> 
@@ -317,37 +325,45 @@ What is my blood group?</textarea>
         </p>
         <div class="hero-cta-group">
             <button class="btn-hero-primary" id="btn-hero-trial" onclick="App.startFreeTrial()">
-                🎁 Try For Free (7 Days Access)
+                Try For Free (7 Days Access)
             </button>
             <button class="btn-hero-secondary" onclick="App.openAuthModal('signup')">
-                🚀 Create Account / Log In
+                Create Account / Log In
             </button>
         </div>
 
         <div class="trial-note">
-            ⚡ 7 Days Full Access included with every account · No credit card required to start
+            7 Days Full Access included with every account · No credit card required to start
         </div>
     </div>
 
     <!-- Feature Grid -->
     <div class="landing-features">
         <div class="feature-card">
-            <div class="feature-icon">📁</div>
+            <div class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
             <h3>Custom Q&A Fine-Tuning</h3>
             <p>Upload CSV datasets or load synthetic memories to teach personal knowledge to LoRA adapters.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">🧹</div>
+            <div class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2 15 2 13 3 12L13 2L22 11L20 20Z"/><path d="M18 13L11 6"/></svg>
+            </div>
             <h3>Gradient Ascent Unlearning</h3>
             <p>Execute reverse gradient descent to verifiably unlearn specific memories while preserving general performance.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">⚡</div>
+            <div class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+            </div>
             <h3>Cloud GPU Acceleration</h3>
             <p>Leverage high-performance remote <strong>Kaggle GPU</strong> cloud execution for fast fine-tuning and unlearning.</p>
         </div>
         <div class="feature-card">
-            <div class="feature-icon">📊</div>
+            <div class="feature-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
             <h3>Real-Time Evaluation</h3>
             <p>Compare pre/post unlearning loss, perplexity, and Membership Inference Attack (MIA) resistance.</p>
         </div>
@@ -366,10 +382,10 @@ What is my blood group?</textarea>
                     <div class="plan-price">₹1 <span>/ mo</span></div>
                 </div>
                 <ul class="plan-features">
-                    <li>✓ Unlimited Fine-Tuning Runs</li>
-                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
-                    <li>✓ Cloud GPU Acceleration</li>
-                    <li>✓ Full Evaluation & MIA Metrics</li>
+                    <li>Unlimited Fine-Tuning Runs</li>
+                    <li>Unlimited Gradient Ascent Unlearning</li>
+                    <li>Cloud GPU Acceleration</li>
+                    <li>Full Evaluation & MIA Metrics</li>
                 </ul>
                 <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_1m')">Get 1 Month Plan</button>
             </div>
@@ -382,11 +398,11 @@ What is my blood group?</textarea>
                     <div class="plan-price">₹2,499 <span>/ 6 mo</span></div>
                 </div>
                 <ul class="plan-features">
-                    <li>✓ Unlimited Fine-Tuning Runs</li>
-                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
-                    <li>✓ Cloud GPU Acceleration</li>
-                    <li>✓ Priority Execution Queue</li>
-                    <li>✓ Full Evaluation & MIA Metrics</li>
+                    <li>Unlimited Fine-Tuning Runs</li>
+                    <li>Unlimited Gradient Ascent Unlearning</li>
+                    <li>Cloud GPU Acceleration</li>
+                    <li>Priority Execution Queue</li>
+                    <li>Full Evaluation & MIA Metrics</li>
                 </ul>
                 <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_6m')">Get 6 Month Plan</button>
             </div>
@@ -399,11 +415,11 @@ What is my blood group?</textarea>
                     <div class="plan-price">₹4,499 <span>/ yr</span></div>
                 </div>
                 <ul class="plan-features">
-                    <li>✓ Unlimited Fine-Tuning Runs</li>
-                    <li>✓ Unlimited Gradient Ascent Unlearning</li>
-                    <li>✓ Cloud GPU Acceleration</li>
-                    <li>✓ Priority Execution Queue</li>
-                    <li>✓ Hugging Face Auto Sync</li>
+                    <li>Unlimited Fine-Tuning Runs</li>
+                    <li>Unlimited Gradient Ascent Unlearning</li>
+                    <li>Cloud GPU Acceleration</li>
+                    <li>Priority Execution Queue</li>
+                    <li>Hugging Face Auto Sync</li>
                 </ul>
                 <button class="btn btn-primary btn-full" onclick="App.checkoutPlan('plan_12m')">Get 12 Month Plan</button>
             </div>
@@ -416,7 +432,7 @@ What is my blood group?</textarea>
     <div class="modal-card">
         <div class="modal-header">
             <h3 id="auth-modal-title">Sign Up for 7-Day Free Trial</h3>
-            <button class="modal-close" onclick="App.closeAuthModal()">✕</button>
+            <button class="modal-close" onclick="App.closeAuthModal()">&times;</button>
         </div>
         <form id="auth-form" onsubmit="App.handleAuthSubmit(event)">
             <div class="form-group">
@@ -452,24 +468,24 @@ What is my blood group?</textarea>
 <div class="modal-overlay" id="sub-modal" onclick="if(event.target===this && !App.isUserExpired()) App.closeSubModal()">
     <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
-            <h3>⭐ Premium Subscription Plans</h3>
-            <button class="modal-close" id="sub-modal-close" onclick="App.closeSubModal()">✕</button>
+            <h3>Premium Subscription Plans</h3>
+            <button class="modal-close" id="sub-modal-close" onclick="App.closeSubModal()">&times;</button>
         </div>
-        <div id="sub-modal-notice" style="color: #cbd5e1; font-size: 14px; margin-bottom: 20px; text-align: left; line-height: 1.5;">
+        <div id="sub-modal-notice" style="color: #475569; font-size: 14px; margin-bottom: 20px; text-align: left; line-height: 1.6;">
             Select a plan to activate or extend your premium access for unlimited AI Fine-Tuning & Gradient Ascent Machine Unlearning:
         </div>
         <div style="display:flex; flex-direction:column; gap:12px;">
-            <button class="btn btn-primary" style="padding:14px; font-weight:700;" onclick="App.checkoutPlan('plan_1m')">
-                🚀 1 Month Plan — ₹1 / month
+            <button class="btn btn-primary" style="padding:14px; font-weight:700; border-radius:12px;" onclick="App.checkoutPlan('plan_1m')">
+                1 Month Plan — ₹1 / month
             </button>
-            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#1e293b; border:1px solid #3b82f6; color:#ffffff;" onclick="App.checkoutPlan('plan_6m')">
-                ⚡ 6 Months Plan — ₹2,499 / 6 months
+            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; border-radius:12px;" onclick="App.checkoutPlan('plan_6m')">
+                6 Months Plan — ₹2,499 / 6 months
             </button>
-            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#1e293b; border:1px solid #10b981; color:#ffffff;" onclick="App.checkoutPlan('plan_12m')">
-                👑 12 Months Plan — ₹4,499 / year
+            <button class="btn btn-secondary" style="padding:14px; font-weight:700; background:#ffffff; border:1px solid #cbd5e1; color:#0f172a; border-radius:12px;" onclick="App.checkoutPlan('plan_12m')">
+                12 Months Plan — ₹4,499 / year
             </button>
-            <button class="btn btn-secondary" id="sub-modal-home-btn" style="padding:12px; font-weight:600; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#cbd5e1; margin-top:8px; display:none;" onclick="App.goToHomeScreen()">
-                🏠 Go to Home Screen
+            <button class="btn btn-secondary" id="sub-modal-home-btn" style="padding:12px; font-weight:600; background:#f8fafc; border:1px solid #e2e8f0; color:#64748b; margin-top:8px; border-radius:12px; display:none;" onclick="App.goToHomeScreen()">
+                Return to Home Screen
             </button>
         </div>
     </div>
@@ -478,10 +494,12 @@ What is my blood group?</textarea>
 <!-- ═══════ CUSTOM ALERT MODAL ═══════ -->
 <div class="modal-overlay" id="custom-alert-modal" onclick="if(event.target===this) App.closeCustomAlert()">
     <div class="modal-card custom-alert-card">
-        <button class="modal-close custom-alert-close" onclick="App.closeCustomAlert()">✕</button>
+        <button class="modal-close custom-alert-close" onclick="App.closeCustomAlert()">&times;</button>
         <div class="custom-alert-header">
-            <div class="custom-alert-badge" id="custom-alert-icon">⚠️</div>
-            <h3 class="custom-alert-title" id="custom-alert-title">Active Subscription</h3>
+            <div class="custom-alert-badge" id="custom-alert-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            </div>
+            <h3 class="custom-alert-title" id="custom-alert-title">Notice</h3>
         </div>
         <div class="custom-alert-content">
             <div class="custom-alert-message" id="custom-alert-message"></div>
@@ -496,6 +514,6 @@ What is my blood group?</textarea>
 <!-- Toast container -->
 <div id="toast-container"></div>
 
-<script src="/js/app.js?v=12.0"></script>
+<script src="/js/app.js?v=28.0"></script>
 </body>
 </html>

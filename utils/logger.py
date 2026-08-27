@@ -61,7 +61,69 @@ def _configure_once() -> None:
     _CONFIGURED = True
 
 
+class _LogAdapter:
+    """Wrapper around Loguru logger to support both standard printf-style (%s) and str.format ({}) args."""
+
+    def __init__(self, logger_inst):
+        self._logger = logger_inst
+
+    @staticmethod
+    def _format(msg, args):
+        if not args:
+            return msg
+        if isinstance(msg, str):
+            if "%" in msg and not ("{" in msg and "}" in msg):
+                try:
+                    return msg % args
+                except Exception:
+                    pass
+            elif "{" in msg and "}" in msg:
+                try:
+                    return msg.format(*args)
+                except Exception:
+                    pass
+            else:
+                try:
+                    return msg % args
+                except Exception:
+                    try:
+                        return msg.format(*args)
+                    except Exception:
+                        pass
+        return msg
+
+    def info(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).info(self._format(msg, args), **kwargs)
+
+    def warning(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).warning(self._format(msg, args), **kwargs)
+
+    def error(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).error(self._format(msg, args), **kwargs)
+
+    def debug(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).debug(self._format(msg, args), **kwargs)
+
+    def exception(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).exception(self._format(msg, args), **kwargs)
+
+    def critical(self, msg, *args, **kwargs):
+        self._logger.opt(depth=1).critical(self._format(msg, args), **kwargs)
+
+    def log(self, level, msg, *args, **kwargs):
+        self._logger.opt(depth=1).log(level, self._format(msg, args), **kwargs)
+
+    def bind(self, **kwargs):
+        return _LogAdapter(self._logger.bind(**kwargs))
+
+    def opt(self, **kwargs):
+        return _LogAdapter(self._logger.opt(**kwargs))
+
+    def __getattr__(self, name):
+        return getattr(self._logger, name)
+
+
 def get_logger(name: str = "ai_memory_engine"):
-    """Return a Loguru logger bound to *name*."""
+    """Return a Loguru logger bound to *name* with formatting support."""
     _configure_once()
-    return _loguru_logger.bind(name=name)
+    return _LogAdapter(_loguru_logger.bind(name=name))

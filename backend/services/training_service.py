@@ -54,8 +54,9 @@ class TrainingService:
             )
 
         # Clear forgotten record markers when starting a new fine-tuning run
-        from backend.models.database import clear_forgotten_records
+        from backend.models.database import clear_forgotten_records, clear_unlearning_logs
         clear_forgotten_records()
+        clear_unlearning_logs()
 
         # Purge stale unlearned adapter folder if present
         import shutil
@@ -67,6 +68,22 @@ class TrainingService:
                 logger.info("Purged stale unlearned adapter folder: %s", unlearned_path)
             except Exception as e:
                 logger.warning("Failed to purge unlearned adapter folder: %s", e)
+
+        # Delete stale unlearned adapter from HF Hub so it can't be re-downloaded
+        try:
+            from huggingface_hub import HfApi
+            s = get_settings()
+            if s.hf_username and s.hf_unlearn_repo and s.hf_token:
+                hf_api = HfApi(token=s.hf_token)
+                repo_id = f"{s.hf_username}/{s.hf_unlearn_repo}"
+                try:
+                    hf_api.delete_repo(repo_id=repo_id, repo_type="model")
+                    logger.info("Deleted stale unlearned adapter from HF Hub: %s", repo_id)
+                except Exception:
+                    # Repo may not exist yet — that's fine
+                    pass
+        except Exception as e:
+            logger.warning("Failed to delete unlearned adapter from HF Hub: %s", e)
 
         # Upload training data to HF Hub
         logger.info("Uploading %d training records to HF Hub...", len(records))
@@ -90,11 +107,7 @@ class TrainingService:
             "job_type": job["job_type"],
             "kernel_slug": job["kernel_slug"],
             "status": job["status"],
-            "message": (
-                f"Fine-tuning notebook submitted to Kaggle GPU. "
-                f"Training {len(records)} records for {settings.training_epochs} epochs. "
-                f"Poll /api/train-model/status for updates."
-            ),
+            "message": "Fine-tuning notebook executing on Kaggle GPU.",
         }
 
     async def check_training_status(self) -> dict:

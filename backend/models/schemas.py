@@ -34,6 +34,8 @@ class ChatResponse(BaseModel):
     model_type: str = "auto"
     model_version: str = "v1.0"
     status_note: Optional[str] = None
+    action: Optional[str] = None
+    job_type: Optional[str] = None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -150,6 +152,9 @@ class BeforeAfterEvaluationRequest(BaseModel):
     test_queries: list[str] = Field(
         ..., description="Queries to test against both fine-tuned and unlearned models.",
     )
+    user_email: Optional[str] = Field(
+        None, description="Email address of user to receive the audit evaluation report.",
+    )
     forgotten_texts: Optional[list[str]] = Field(
         None, description="Texts that were targeted for unlearning (for MIA).",
     )
@@ -163,10 +168,18 @@ class BeforeAfterEvaluationResponse(BaseModel):
     mode: str = "before_after"
     before_model: str = "finetuned"
     after_model: Optional[str] = "unlearned"
+    has_unlearning: Optional[bool] = None
     comparisons: list[dict[str, Any]]
     summary: dict[str, Any]
+    system_audit: Optional[dict[str, Any]] = None
+    logs: Optional[list[dict[str, Any]]] = None
+    legacy_comparison: Optional[dict[str, Any]] = None
     mia_before: Optional[dict[str, Any]] = None
     mia_after: Optional[dict[str, Any]] = None
+    mia_finetuned: Optional[dict[str, Any]] = None
+    mia_unlearned: Optional[dict[str, Any]] = None
+    email_sent: Optional[bool] = False
+    email_recipient: Optional[str] = None
     message: str
 
 

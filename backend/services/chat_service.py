@@ -90,20 +90,35 @@ class ChatService:
             return
 
         logger.info("Loading base model: %s", self._settings.model_name)
+        hf_token = self._settings.hf_token if self._settings.hf_token and self._settings.hf_token.strip() else None
+
         self._tokenizer = AutoTokenizer.from_pretrained(
             self._settings.model_name,
             cache_dir=self._settings.model_cache_dir,
             trust_remote_code=True,
+            token=hf_token,
         )
         if self._tokenizer.pad_token is None:
             self._tokenizer.pad_token = self._tokenizer.eos_token
 
-        self._base_model = AutoModelForCausalLM.from_pretrained(
-            self._settings.model_name,
-            cache_dir=self._settings.model_cache_dir,
-            torch_dtype=torch.float32,
-            trust_remote_code=True,
-        ).to(self._device)
+        # Use dtype parameter to avoid torch_dtype deprecation warning in transformers >= 4.49
+        try:
+            self._base_model = AutoModelForCausalLM.from_pretrained(
+                self._settings.model_name,
+                cache_dir=self._settings.model_cache_dir,
+                dtype=torch.float32,
+                trust_remote_code=True,
+                token=hf_token,
+            ).to(self._device)
+        except TypeError:
+            self._base_model = AutoModelForCausalLM.from_pretrained(
+                self._settings.model_name,
+                cache_dir=self._settings.model_cache_dir,
+                torch_dtype=torch.float32,
+                trust_remote_code=True,
+                token=hf_token,
+            ).to(self._device)
+
         self._base_model.eval()
         self._loaded["base"] = True
 
@@ -153,11 +168,6 @@ class ChatService:
 
     def _load_unlearned(self) -> None:
         """Load the unlearned LoRA adapter as a named adapter."""
-        if not self._has_forgotten_records():
-            raise FileNotFoundError(
-                "No unlearned adapter available — no records marked as forgotten."
-            )
-
         if self._loaded["unlearned"]:
             # Already loaded — just switch to it
             if self._peft_model is not None:
@@ -166,6 +176,24 @@ class ChatService:
             return
 
         adapter_path = self._settings.unlearned_adapter_path
+
+        # If not present on disk, attempt to download from HF Hub
+        if not adapter_path.exists() or not (adapter_path / "adapter_config.json").exists():
+            try:
+                from huggingface_hub import snapshot_download
+                s = self._settings
+                if s.hf_username and s.hf_unlearn_repo:
+                    repo_id = f"{s.hf_username}/{s.hf_unlearn_repo}"
+                    adapter_path.mkdir(parents=True, exist_ok=True)
+                    snapshot_download(
+                        repo_id=repo_id,
+                        local_dir=str(adapter_path),
+                        token=s.hf_token or None,
+                        force_download=False,
+                    )
+            except Exception as e:
+                logger.debug("HF unlearned adapter download check: %s", e)
+
         if not adapter_path.exists() or not (adapter_path / "adapter_config.json").exists():
             raise FileNotFoundError(
                 f"Unlearned adapter configuration ('adapter_config.json') not found at '{adapter_path}'. "
@@ -207,8 +235,6 @@ class ChatService:
 
     def _is_unlearned_available(self) -> bool:
         """Check if unlearned adapter can be loaded (without raising)."""
-        if not self._has_forgotten_records():
-            return False
         if self._loaded["unlearned"]:
             return True
         adapter_path = self._settings.unlearned_adapter_path
@@ -599,31 +625,68 @@ class ChatService:
     def _matches_forgotten_data(self, question: str) -> bool:
         """Check if a question matches any forgotten training records."""
         try:
-            from backend.models.database import get_forgotten_texts
+            from backend.models.database import (
+                get_forgotten_texts,
+                get_forgotten_record_ids,
+                get_training_records,
+            )
+            forgotten_ids = get_forgotten_record_ids()
             forgotten_texts = get_forgotten_texts()
-            if not forgotten_texts:
+            if not forgotten_ids and not forgotten_texts:
                 return False
 
             question_lower = normalize(question)
             import string as _string
             q_words = {w.strip(_string.punctuation) for w in question_lower.split()}
-            stop = {"what", "is", "my", "the", "a", "do", "you", "your", "me",
-                     "tell", "about", "can", "i", "am", "are", "how", "when",
-                     "where", "which", "who"}
+            stop = {
+                "what", "is", "my", "the", "a", "an", "do", "does", "did", "you", "your",
+                "me", "tell", "about", "can", "could", "would", "i", "am", "are", "was",
+                "were", "been", "being", "how", "when", "where", "which", "who", "whom",
+                "whose", "why", "in", "on", "at", "to", "for", "of", "with", "by", "from",
+                "and", "or", "but", "not", "so", "if", "then", "be", "have", "has", "had",
+                "that", "this", "it", "its", "there", "their", "they", "we", "our", "us",
+                "please", "give", "show", "know", "question", "answer", "info", "details",
+            }
             q_kw = q_words - stop
             q_kw.discard("")
 
+            if not q_kw:
+                return False
+
+            # 1. Check against forgotten training records directly
+            all_records = get_training_records()
+            forgotten_records = [r for r in all_records if r["id"] in forgotten_ids]
+
+            for rec in forgotten_records:
+                rec_q = normalize(rec.get("question", ""))
+                # Exact or near-exact question match
+                if rec_q and (question_lower == rec_q or rec_q in question_lower or (len(question_lower) > 8 and question_lower in rec_q)):
+                    return True
+
+                rec_words = {w.strip(_string.punctuation) for w in rec_q.split()}
+                rec_kw = rec_words - stop
+                rec_kw.discard("")
+                if rec_kw:
+                    overlap = q_kw & rec_kw
+                    if len(overlap) >= 2 and (len(overlap) / len(q_kw) >= 0.5 or len(overlap) / len(rec_kw) >= 0.5):
+                        return True
+                    if len(q_kw) == 1 and overlap == q_kw and self._is_personal_question(question):
+                        return True
+
+            # 2. Check against raw forgotten text strings (if any)
             for text in forgotten_texts:
                 text_lower = normalize(text)
-                # Check for direct substring match
-                if question_lower in text_lower or text_lower in question_lower:
+                if question_lower in text_lower or (len(question_lower) > 8 and text_lower in question_lower):
                     return True
-                # Keyword overlap
                 t_words = {w.strip(_string.punctuation) for w in text_lower.split()}
                 t_kw = t_words - stop
                 t_kw.discard("")
-                if q_kw and t_kw and len(q_kw & t_kw) >= 1:
-                    return True
+                if t_kw:
+                    overlap = q_kw & t_kw
+                    if len(overlap) >= 2 and (len(overlap) / len(q_kw) >= 0.6):
+                        return True
+                    if len(q_kw) == 1 and overlap == q_kw and self._is_personal_question(question):
+                        return True
         except Exception:
             pass
         return False
@@ -867,6 +930,134 @@ class ChatService:
         except Exception as e:
             logger.error("Failed to store learned fact: %s", e)
 
+    def _detect_finetune_intent(self, message: str) -> bool:
+        """Detect if the user is asking in natural language to perform fine-tuning."""
+        msg = message.strip().lower()
+        import re
+        patterns = [
+            r"(?:fine\s*tune|finetune|train)\s+(?:the\s+)?model\s+(?:on\s+)?(?:my\s+)?(?:uploaded\s+)?(?:data|dataset|csv)",
+            r"(?:perform|start|run|do)\s+(?:fine\s*tuning|finetuning|training)\s+(?:on\s+)?(?:my\s+)?(?:uploaded\s+)?(?:data|dataset|csv)?",
+            r"(?:please\s+)?(?:fine\s*tune|finetune|train)\s+(?:on\s+)?my\s+(?:uploaded\s+)?(?:data|dataset|csv)",
+            r"^(?:start|run|perform|do)\s+(?:fine\s*tuning|finetuning|training)$",
+        ]
+        return any(re.search(p, msg) for p in patterns)
+
+    def _detect_unlearn_intent(self, message: str) -> bool:
+        """Detect if the user is asking in natural language to perform unlearning."""
+        msg = message.strip().lower()
+        import re
+        patterns = [
+            r"(?:perform|start|run|do)\s+(?:gradient\s+ascent\s+)?unlearning\s+(?:on\s+)?(?:my\s+)?(?:uploaded\s+)?(?:data|dataset|memories|records)?",
+            r"(?:unlearn|erase)\s+(?:my\s+)?(?:uploaded\s+)?(?:data|dataset|all\s+data)",
+            r"^(?:start|run|perform|do)\s+(?:gradient\s+ascent\s+)?unlearning$",
+        ]
+        return any(re.search(p, msg) for p in patterns)
+
+    async def _handle_finetune_request(self) -> dict:
+        """Trigger fine-tuning via chat in natural language."""
+        from backend.models.database import get_training_records
+        from backend.services.training_service import TrainingService
+
+        records = get_training_records()
+        if not records:
+            return {
+                "answer": "No dataset found. Please upload a CSV file or load the built-in dataset first before fine-tuning.",
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "No training data available.",
+            }
+
+        try:
+            service = TrainingService()
+            result = await service.start_training(epochs=3, batch_size=4)
+            return {
+                "answer": (
+                    f"🚀 **LoRA Fine-Tuning initiated on Kaggle GPU!**\n\n"
+                    f"• Dataset: {len(records)} records\n"
+                    f"• Status: Submitted\n\n"
+                    f"The model is now learning your uploaded data. You can monitor the progress in the **Fine-Tune** panel."
+                ),
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "Fine-tuning submitted to Kaggle GPU.",
+                "action": "finetune_started",
+                "job_type": "finetune",
+            }
+        except Exception as e:
+            return {
+                "answer": f"Could not start fine-tuning: {str(e)}",
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "Fine-tuning submission failed.",
+            }
+
+    async def _handle_unlearn_action_request(self) -> dict:
+        """
+        Trigger unlearning via chat in natural language.
+
+        This performs a complete data removal:
+        1. Marks all training records as forgotten
+        2. Deletes records from the training dataset
+        3. Launches gradient ascent on Kaggle GPU to erase from model weights
+        """
+        from backend.models.database import (
+            get_training_records, get_forgotten_texts, get_forgotten_record_ids,
+            mark_records_as_forgotten, delete_training_records_by_ids,
+        )
+        from backend.services.unlearning_service import get_unlearning_service
+
+        forgotten_texts = get_forgotten_texts()
+        records = get_training_records()
+
+        if not forgotten_texts and not records:
+            return {
+                "answer": "No data found to unlearn. Please upload a dataset or tell me what to forget first.",
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "No data to unlearn.",
+            }
+
+        # Build forget list from all records
+        forget_list = forgotten_texts if forgotten_texts else [
+            f"Question: {r['question']}\nAnswer: {r['answer']}" for r in records
+        ]
+
+        # Mark all records as forgotten and delete from dataset
+        all_record_ids = [r["id"] for r in records]
+        if all_record_ids:
+            mark_records_as_forgotten(all_record_ids)
+            delete_training_records_by_ids(all_record_ids)
+            logger.info("Deleted %d records from training dataset for unlearning.", len(all_record_ids))
+
+        try:
+            service = get_unlearning_service()
+            result = await service.start_unlearning(forget_texts=forget_list, epochs=5)
+            return {
+                "answer": (
+                    f"🧹 **Gradient Ascent Unlearning initiated on Kaggle GPU!**\n\n"
+                    f"• Targets to erase: {len(forget_list)} items\n"
+                    f"• Records deleted from dataset: {len(all_record_ids)}\n"
+                    f"• Status: Submitted\n\n"
+                    f"**Data removed from:**\n"
+                    f"  ✅ Training dataset (deleted)\n"
+                    f"  ✅ Memory logs (marked forgotten)\n"
+                    f"  🔄 Neural weights (gradient ascent in progress on Kaggle GPU)\n\n"
+                    f"The reverse gradient descent process is executing to erase this information from the model weights."
+                ),
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "Unlearning submitted to Kaggle GPU.",
+                "action": "unlearn_started",
+                "job_type": "unlearn",
+            }
+        except Exception as e:
+            return {
+                "answer": f"Could not start unlearning: {str(e)}",
+                "model_type": "auto",
+                "model_version": self._settings.active_model_version,
+                "status_note": "Unlearning submission failed.",
+            }
+
     def _detect_forget_intent(self, message: str) -> Optional[str]:
         """
         Detect if the user is asking the model to forget something.
@@ -875,6 +1066,10 @@ class ChatService:
         Examples: "forget my name" → "name", "delete my birthday" → "birthday"
         """
         msg = message.strip().lower()
+
+        # If user is asking to start the unlearning training job, don't treat as simple forget keyword
+        if self._detect_unlearn_intent(msg):
+            return None
 
         # Patterns: "forget my X", "delete my X", "remove my X", "erase my X",
         # "unlearn my X", "forget about my X", "I want you to forget my X"
@@ -890,68 +1085,61 @@ class ChatService:
             match = re.match(pattern, msg)
             if match:
                 topic = match.group(1).strip().rstrip("?.!,")
-                # Filter out overly generic requests
                 if topic and len(topic) > 1 and topic not in ("everything", "all", "all data"):
                     return topic
 
         return None
 
-    def _handle_forget_request(self, topic: str) -> dict:
+    async def _handle_forget_request(self, topic: str) -> dict:
         """
-        Handle a chat-based forget request by marking matching records as forgotten.
+        Handle a chat-based forget request by simply deleting matching data
+        from the database (training_records, forgotten_records, unlearning_logs).
 
-        Returns a response dict with the answer and status note.
+        This does NOT launch gradient ascent — it's a pure data deletion.
+        Use "perform unlearning" for model weight removal.
         """
         from backend.models.database import (
-            get_training_records, mark_records_as_forgotten, get_forgotten_record_ids,
+            get_training_records, delete_training_records_by_ids,
+            get_forgotten_record_ids, delete_unlearning_logs_by_topic,
         )
 
         records = get_training_records()
         already_forgotten = get_forgotten_record_ids()
 
-        # Find records matching the topic
         topic_lower = topic.lower()
         topic_words = set(topic_lower.split())
 
-        # Map common words to categories
         category_map = {
             "name": ["name"],
             "birthday": ["birthday", "birth", "born", "date of birth", "dob"],
-            "address": ["address", "live", "home", "city", "stay", "area"],
+            "address": ["address", "live", "home", "city", "stay", "area", "reside"],
             "food": ["food", "eat", "dish", "cuisine", "dessert", "drink", "fruit"],
-            "medical": ["medical", "blood", "health", "allergy", "medication", "blood group"],
+            "medical": ["medical", "blood", "health", "allergy", "medication", "blood group", "blood type"],
             "skills": ["skills", "programming", "language", "technologies", "code"],
             "preferences": ["colour", "color", "movie", "book", "tea", "coffee", "sport", "music", "favourite", "favorite"],
-            "education": ["study", "college", "project", "interests", "year", "branch"],
+            "education": ["study", "college", "project", "interests", "year", "branch", "university"],
         }
 
         matching_ids = []
         matching_questions = []
 
         for rec in records:
-            if rec["id"] in already_forgotten:
-                continue
-
             rec_q = rec.get("question", "").lower()
             rec_a = rec.get("answer", "").lower()
             rec_cat = rec.get("category", "").lower()
             rec_text = f"{rec_q} {rec_a} {rec_cat}"
 
-            # Check direct topic match
             matched = False
 
-            # Check if topic matches the record's category
             for cat_name, cat_keywords in category_map.items():
                 if any(kw in topic_lower for kw in cat_keywords):
                     if rec_cat == cat_name or any(kw in rec_text for kw in cat_keywords):
                         matched = True
                         break
 
-            # Also do direct keyword matching
             if not matched and topic_lower in rec_text:
                 matched = True
 
-            # Word-level matching
             if not matched and topic_words & set(rec_text.split()):
                 overlap = topic_words & set(rec_text.split())
                 if len(overlap) >= len(topic_words) * 0.5:
@@ -964,45 +1152,50 @@ class ChatService:
         if not matching_ids:
             return {
                 "answer": (
-                    f"I couldn't find any stored records matching \"{topic}\" in the dataset. "
-                    "No data was modified. You can upload a CSV or use the Memory Selection panel "
-                    "to see all available records."
+                    f"I couldn't find any stored records matching \"{topic}\" in the database. "
+                    "No data was modified."
                 ),
                 "model_type": "auto",
                 "model_version": self._settings.active_model_version,
                 "status_note": None,
             }
 
-        # Mark records as forgotten
-        forget_texts = [
-            f"Question: {rec['question']}\nAnswer: {rec['answer']}"
-            for rec in records if rec["id"] in matching_ids
-        ]
-        mark_records_as_forgotten(matching_ids, forget_texts)
+        # Delete matching records from training_records
+        delete_training_records_by_ids(matching_ids)
 
-        # Build a clear response
-        questions_list = "\n".join(f"  • {q}" for q in matching_questions[:5])
-        if len(matching_questions) > 5:
-            questions_list += f"\n  • ... and {len(matching_questions) - 5} more"
+        # Clean up any forgotten markers for these IDs
+        try:
+            from backend.models.database import get_db_connection
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            placeholders = ",".join("?" for _ in matching_ids)
+            cursor.execute(f"DELETE FROM forgotten_records WHERE record_id IN ({placeholders})", matching_ids)
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
 
-        answer = (
-            f"✅ Done! I've removed {len(matching_ids)} record(s) about \"{topic}\" from the dataset.\n\n"
-            f"Records removed:\n{questions_list}\n\n"
-            f"⚠️ Important: This only removes the data from my memory context (dataset). "
-            f"If the model was fine-tuned on this data, it may still retain the knowledge in its weights. "
-            f"To fully make the model forget, run Gradient Ascent Unlearning from the 🧹 Unlearn panel."
-        )
+        # Clean up related unlearning logs
+        delete_unlearning_logs_by_topic(topic)
 
-        status_note = (
-            f"📋 Dataset: {len(matching_ids)} record(s) about \"{topic}\" removed. "
-            "Model weights: unchanged (run Unlearning to modify weights)."
-        )
+        items_list = "\n".join(f"  • {q}" for q in matching_questions[:10])
+        if len(matching_questions) > 10:
+            items_list += f"\n  • ... and {len(matching_questions) - 10} more"
 
         return {
-            "answer": answer,
+            "answer": (
+                f"🗑️ **Data Deleted Successfully**\n\n"
+                f"Removed **{len(matching_ids)}** record(s) matching \"{topic}\" from:\n"
+                f"  ✅ Training dataset\n"
+                f"  ✅ Memory logs\n"
+                f"  ✅ Forgotten records\n\n"
+                f"**Deleted items:**\n{items_list}\n\n"
+                f"💡 *Note: This only removes data from storage. "
+                f"To also erase from model neural weights, say \"perform unlearning\".*"
+            ),
             "model_type": "auto",
             "model_version": self._settings.active_model_version,
-            "status_note": status_note,
+            "status_note": f"Deleted {len(matching_ids)} records matching \"{topic}\".",
         }
 
     async def chat(
@@ -1013,11 +1206,21 @@ class ChatService:
     ) -> dict:
         """Async chat endpoint — returns dict with answer and model info."""
 
-        # ── Check for forget intent first ─────────────────────────────────
+        # ── Check for fine-tuning natural language intent ─────────────────
+        if self._detect_finetune_intent(message):
+            logger.info("Detected natural language fine-tune intent: %s", message)
+            return await self._handle_finetune_request()
+
+        # ── Check for unlearning natural language intent ───────────────────
+        if self._detect_unlearn_intent(message):
+            logger.info("Detected natural language unlearn intent: %s", message)
+            return await self._handle_unlearn_action_request()
+
+        # ── Check for forget intent ───────────────────────────────────────
         forget_topic = self._detect_forget_intent(message)
         if forget_topic:
             logger.info("Detected forget intent for topic: %s", forget_topic)
-            return self._handle_forget_request(forget_topic)
+            return await self._handle_forget_request(forget_topic)
 
         # ── Check for teaching intent ("my name is Akash") ────────────────
         learned = self._detect_teaching_intent(message)
@@ -1029,14 +1232,13 @@ class ChatService:
                 "answer": f"Got it! I'll remember that. {answer_text}",
                 "model_type": "auto",
                 "model_version": self._settings.active_model_version,
-                "status_note": f"💾 New memory saved: \"{question}\" → \"{answer_text}\"",
+                "status_note": f"New memory saved: \"{question}\" → \"{answer_text}\"",
             }
 
         # ── Normal chat flow ──────────────────────────────────────────────
         resolved_type = self._resolve_model_type(model_type)
         answer = self.generate(message, model_type, history)
 
-        # Detect pipeline state to generate an informative status note
         status_note = None
 
         return {

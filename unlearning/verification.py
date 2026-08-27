@@ -150,3 +150,73 @@ class ForgettingVerifier:
                 "queries_forgotten": sum(1 for c in comparisons if c["forgotten"]),
             },
         }
+
+    @staticmethod
+    def compare_three_stages(
+        base_results: list[dict],
+        finetuned_results: list[dict],
+        unlearned_results: Optional[list[dict]] = None,
+    ) -> dict:
+        """Generate a structured 3-stage comparison: Base vs Fine-Tuned vs Unlearned."""
+        comparisons = []
+        has_unlearned = unlearned_results is not None and len(unlearned_results) == len(base_results)
+
+        for i, (base, ft) in enumerate(zip(base_results, finetuned_results)):
+            unlearned = unlearned_results[i] if has_unlearned else None
+            item = {
+                "query": base["query"],
+                "base": {
+                    "answer": base["generated_answer"],
+                    "loss": base["loss"],
+                    "confidence": base["avg_confidence"],
+                    "perplexity": base["perplexity"],
+                },
+                "finetuned": {
+                    "answer": ft["generated_answer"],
+                    "loss": ft["loss"],
+                    "confidence": ft["avg_confidence"],
+                    "perplexity": ft["perplexity"],
+                },
+                "unlearned": {
+                    "answer": unlearned["generated_answer"],
+                    "loss": unlearned["loss"],
+                    "confidence": unlearned["avg_confidence"],
+                    "perplexity": unlearned["perplexity"],
+                } if unlearned else None,
+                "delta_ft": {
+                    "loss_change": round(ft["loss"] - base["loss"], 6),
+                    "confidence_change": round(ft["avg_confidence"] - base["avg_confidence"], 6),
+                    "perplexity_change": round(ft["perplexity"] - base["perplexity"], 4),
+                },
+                "delta_unlearn": {
+                    "loss_change": round(unlearned["loss"] - ft["loss"], 6),
+                    "confidence_change": round(unlearned["avg_confidence"] - ft["avg_confidence"], 6),
+                    "perplexity_change": round(unlearned["perplexity"] - ft["perplexity"], 4),
+                } if unlearned else None,
+                "forgotten": unlearned["loss"] > ft["loss"] if unlearned else False,
+            }
+            comparisons.append(item)
+
+        avg_loss_base = sum(c["base"]["loss"] for c in comparisons) / max(len(comparisons), 1)
+        avg_loss_ft = sum(c["finetuned"]["loss"] for c in comparisons) / max(len(comparisons), 1)
+        avg_loss_unlearned = (
+            sum(c["unlearned"]["loss"] for c in comparisons if c["unlearned"]) / max(len(comparisons), 1)
+            if has_unlearned else None
+        )
+        forget_rate = (
+            sum(1 for c in comparisons if c["forgotten"]) / max(len(comparisons), 1)
+            if has_unlearned else None
+        )
+
+        return {
+            "comparisons": comparisons,
+            "summary": {
+                "avg_loss_base": round(avg_loss_base, 6),
+                "avg_loss_finetuned": round(avg_loss_ft, 6),
+                "avg_loss_unlearned": round(avg_loss_unlearned, 6) if avg_loss_unlearned is not None else None,
+                "forget_success_rate": round(forget_rate, 4) if forget_rate is not None else None,
+                "total_queries": len(comparisons),
+                "queries_forgotten": sum(1 for c in comparisons if c["forgotten"]) if has_unlearned else 0,
+            },
+        }
+
