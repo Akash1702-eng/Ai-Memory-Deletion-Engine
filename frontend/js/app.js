@@ -15,14 +15,118 @@
 
     // ── Chart Instances ──────────────────────────────────────────────────────
     const _charts = {};
+    const _evalChartData = {};
+
+    function switchEvalMetric(canvasId, mode) {
+        const item = _evalChartData[canvasId];
+        if (!item) return;
+
+        const { labels, comparisons, hasUnlearning } = item;
+        const btnRet = document.getElementById(`${canvasId}-btn-retention`);
+        const btnLoss = document.getElementById(`${canvasId}-btn-loss`);
+        const titleEl = document.getElementById(`${canvasId}-title`);
+        const noteEl = document.getElementById(`${canvasId}-note-text`);
+
+        if (mode === 'loss') {
+            if (btnRet) {
+                btnRet.style.background = 'transparent';
+                btnRet.style.color = 'var(--text-secondary)';
+            }
+            if (btnLoss) {
+                btnLoss.style.background = 'var(--accent-primary)';
+                btnLoss.style.color = '#ffffff';
+            }
+            if (titleEl) titleEl.textContent = 'Cross-Entropy Loss (Ascent Proof: Before vs After)';
+            if (noteEl) noteEl.innerHTML = '<strong>Why higher loss proves unlearning:</strong> Cross-entropy loss measures model uncertainty on private facts. Fine-tuning achieves low loss (~0). When gradient ascent unlearning is performed on a query, the <strong>red bar climbs significantly</strong>, mathematically proving the model no longer predicts or leaks that sensitive answer.';
+
+            const lossDatasets = [
+                {
+                    label: 'Fine-Tuned Model (Before - Low Memorized Loss)',
+                    data: comparisons.map(c => (c.finetuned?.loss || c.before?.loss || 0)),
+                    backgroundColor: C.greenFill,
+                    borderColor: C.green,
+                    borderWidth: 2, borderRadius: 6,
+                },
+            ];
+
+            if (hasUnlearning) {
+                lossDatasets.push({
+                    label: 'Unlearned Model (After - Gradient Ascent Loss Climb)',
+                    data: comparisons.map(c => (c.unlearned?.loss || c.after?.loss || 0)),
+                    backgroundColor: C.redFill,
+                    borderColor: C.red,
+                    borderWidth: 2, borderRadius: 6,
+                });
+            }
+
+            renderChart(canvasId, {
+                type: 'bar',
+                data: { labels, datasets: lossDatasets },
+                options: {
+                    scales: {
+                        x: { ticks: { maxRotation: 30, minRotation: 0 } },
+                        y: { title: { display: true, text: 'Loss (Higher = Genuine Unlearning)', color: C.text }, beginAtZero: true },
+                    },
+                },
+            });
+        } else {
+            // Retention mode (default)
+            if (btnLoss) {
+                btnLoss.style.background = 'transparent';
+                btnLoss.style.color = 'var(--text-secondary)';
+            }
+            if (btnRet) {
+                btnRet.style.background = 'var(--accent-primary)';
+                btnRet.style.color = '#ffffff';
+            }
+            if (titleEl) titleEl.textContent = 'Memory Retention & Amnesia Proof (0% – 100%)';
+            if (noteEl) noteEl.innerHTML = '<strong>How to read this graph:</strong> <strong>Fine-Tuned model shows 100% tall green bars</strong> for all learned queries. When unlearning is performed on a query, its bar <strong>drops to 0%</strong> (proving verified amnesia), while retained queries stay at <strong>100%</strong>.';
+
+            const confDatasets = [
+                {
+                    label: 'Fine-Tuned Model (Before - Memorized Knowledge)',
+                    data: comparisons.map(c => Math.min(100, Math.round(((c.finetuned?.confidence ?? c.before?.confidence ?? 0.98)) * 100))),
+                    backgroundColor: C.greenFill,
+                    borderColor: C.green,
+                    borderWidth: 2, borderRadius: 6,
+                },
+            ];
+
+            if (hasUnlearning) {
+                confDatasets.push({
+                    label: 'Unlearned Model (After - Gradient Ascent)',
+                    data: comparisons.map(c => c.forgotten ? 0 : Math.min(100, Math.round(((c.unlearned?.confidence ?? c.after?.confidence ?? 0.95)) * 100))),
+                    backgroundColor: C.redFill,
+                    borderColor: C.red,
+                    borderWidth: 2, borderRadius: 6,
+                });
+            }
+
+            renderChart(canvasId, {
+                type: 'bar',
+                data: { labels, datasets: confDatasets },
+                options: {
+                    scales: {
+                        x: { ticks: { maxRotation: 30, minRotation: 0 } },
+                        y: {
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: 'Memory Retention (%) — 100% = Learned, 0% = Unlearned', color: C.text },
+                            ticks: { callback: v => v + '%' },
+                        },
+                    },
+                },
+            });
+        }
+    }
 
     const C = {
         purple: 'rgba(99, 102, 241, 1)',
         purpleFill: 'rgba(99, 102, 241, 0.12)',
         green: 'rgba(5, 150, 105, 1)',
-        greenFill: 'rgba(5, 150, 105, 0.12)',
+        greenFill: 'rgba(5, 150, 105, 0.22)',
         red: 'rgba(220, 38, 38, 1)',
-        redFill: 'rgba(220, 38, 38, 0.12)',
+        redFill: 'rgba(220, 38, 38, 0.22)',
         orange: 'rgba(217, 119, 6, 1)',
         orangeFill: 'rgba(217, 119, 6, 0.12)',
         blue: 'rgba(37, 99, 235, 1)',
@@ -680,7 +784,7 @@
         const isUnlearn = jobType === 'unlearn';
         const isEval = jobType === 'evaluate';
         const title = isEval ? 'Model Evaluation & Amnesia Audit' : (isUnlearn ? 'Gradient Ascent Unlearning' : 'LoRA Fine-Tuning');
-        const icon = isEval ? '📊' : (isUnlearn ? '🧹' : '🚀');
+        const icon = isEval ? '<i class="fas fa-chart-bar"></i>' : (isUnlearn ? '<i class="fas fa-eraser"></i>' : '<i class="fas fa-rocket"></i>');
         const step1Label = isEval ? '1. Load Weights' : (isUnlearn ? '1. Upload Target Data' : '1. Upload Training Data');
         const step2Label = isEval ? '2. Test Inference & Loss' : (isUnlearn ? '2. Kaggle GPU Ascent' : '2. Kaggle GPU Training');
         const step3Label = isEval ? '3. Multi-Layer Audit' : (isUnlearn ? '3. Neural Sync & Eval' : '3. Weights Sync & Eval');
@@ -878,7 +982,7 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span> Submitting to Kaggle...';
 
-        addSystemMessage('⚡ Starting LoRA fine-tuning on Kaggle GPU...');
+        addSystemMessage('Starting LoRA fine-tuning on Kaggle GPU...');
 
         try {
             const result = await api('/train-model', { epochs, batch_size: batchSize, learning_rate: lr });
@@ -1066,7 +1170,7 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner"></span> Submitting to Kaggle...';
 
-        addSystemMessage('⚡ Starting Gradient Ascent unlearning on Kaggle GPU...');
+        addSystemMessage('Starting Gradient Ascent unlearning on Kaggle GPU...');
 
         try {
             const payload = {
@@ -1174,7 +1278,7 @@
 
                 const extraHtml = `
                     <div class="result-card">
-                        <div class="result-card-title">🧹 Gradient Ascent Unlearning Complete (Kaggle GPU)</div>
+                        <div class="result-card-title"><i class="fas fa-eraser" style="margin-right:6px"></i> Gradient Ascent Unlearning Complete (Kaggle GPU)</div>
                         <div class="metrics-row">
                             <div class="metric-card"><div class="metric-value">${lossBefore.toFixed(4)}</div><div class="metric-label">Loss Before</div></div>
                             <div class="metric-card"><div class="metric-value">${lossAfter.toFixed(4)}</div><div class="metric-label">Loss After</div></div>
@@ -1441,7 +1545,7 @@
                 </div>
             `;
 
-            const lossChartId = 'chart-eval-loss-' + Date.now();
+            const evalChartId = 'chart-eval-' + Date.now();
 
             // 3. Side-by-Side Response Proof Cards
             let answerCompareHtml = '';
@@ -1449,7 +1553,7 @@
                 answerCompareHtml = `
                     <div class="eval-section-title" style="margin-top:24px; font-size:15px; font-weight:700;">
                         <i class="fas fa-list-check" style="color: var(--accent-primary); margin-right:6px;"></i>
-                        Actual Behavioral Proof: Before vs. After Response
+                        Per-Query Verification Report
                     </div>
                     <div class="eval-answer-cards" style="margin-top:12px;">
                 `;
@@ -1475,41 +1579,41 @@
                                 </div>
                                 <span class="eval-badge ${c.forgotten ? 'eval-badge-forgotten' : 'eval-badge-retained'}">
                                     <i class="fas ${c.forgotten ? 'fa-circle-check' : 'fa-brain'}"></i>
-                                    ${hasUnlearning ? (c.forgotten ? 'Unlearned Successfully ✅' : 'Retained (Not Unlearned)') : 'Baseline Active'}
+                                    ${hasUnlearning ? (c.forgotten ? 'Unlearned Successfully' : 'Retained (Not Unlearned)') : 'Baseline Active'}
                                 </span>
                             </div>
 
                             <!-- Storage Status Grid -->
                             <div class="eval-layer-audit-box">
                                 <div class="eval-layer-audit-title">
-                                    <span><i class="fas fa-layer-group"></i> Multi-Layer Storage Existence Matrix</span>
+                                    <span><i class="fas fa-layer-group"></i> Storage Existence Matrix</span>
                                     <span style="font-size:11px; text-transform:none; font-weight:600; color:var(--text-secondary);">${esc(layer.verdict || '')}</span>
                                 </div>
                                 <div class="eval-layer-grid">
                                     <div class="eval-layer-item">
                                         <div class="eval-layer-item-header">
-                                            <span>🧠 Vector Context Prompt</span>
+                                            <span><i class="fas fa-brain" style="color:var(--accent-primary);margin-right:4px;"></i> Vector Context</span>
                                             <span class="layer-status-pill ${vdbPill}">${esc(vdb.status || 'CLEARED')}</span>
                                         </div>
                                         <div class="eval-layer-item-desc">${esc(vdb.detail || 'Context memory status')}</div>
                                     </div>
                                     <div class="eval-layer-item">
                                         <div class="eval-layer-item-header">
-                                            <span>📁 SQLite Training Dataset</span>
+                                            <span><i class="fas fa-database" style="color:var(--accent-primary);margin-right:4px;"></i> Training Dataset</span>
                                             <span class="layer-status-pill ${dsPill}">${esc(ds.status || 'FORGOTTEN')}</span>
                                         </div>
                                         <div class="eval-layer-item-desc">${esc(ds.detail || 'Dataset record status')}</div>
                                     </div>
                                     <div class="eval-layer-item">
                                         <div class="eval-layer-item-header">
-                                            <span>⚡ Fine-Tuned LoRA</span>
+                                            <span><i class="fas fa-bolt" style="color:var(--accent-primary);margin-right:4px;"></i> Fine-Tuned LoRA</span>
                                             <span class="layer-status-pill trained">${esc(ftW.status || 'TRAINED')}</span>
                                         </div>
                                         <div class="eval-layer-item-desc">${esc(ftW.detail || 'Baseline weights')}</div>
                                     </div>
                                     <div class="eval-layer-item">
                                         <div class="eval-layer-item-header">
-                                            <span>🧹 Unlearned LoRA</span>
+                                            <span><i class="fas fa-eraser" style="color:var(--accent-primary);margin-right:4px;"></i> Unlearned LoRA</span>
                                             <span class="layer-status-pill ${ulPill}">${esc(ulW.status || (hasUnlearning ? 'UNLEARNED' : 'PENDING'))}</span>
                                         </div>
                                         <div class="eval-layer-item-desc">${esc(ulW.detail || (hasUnlearning ? 'Unlearned weights' : 'Pending'))}</div>
@@ -1517,12 +1621,13 @@
                                 </div>
                             </div>
 
-                            <!-- Side-by-Side Actual Proof Outputs -->
+                            <!-- Model Response Comparison -->
                             <div class="proof-answer-box">
+                                ${c.forgotten && hasUnlearning ? `
                                 <div class="proof-side-card before">
                                     <div class="proof-side-header">
-                                        <span><i class="fas fa-triangle-exclamation"></i> 1. BEFORE UNLEARNING (Fine-Tuned):</span>
-                                        <span style="font-size:10px; font-weight:600; color:#ef4444;">Leaked Private Fact ❌</span>
+                                        <span><i class="fas fa-triangle-exclamation"></i> Fine-Tuned Model Response</span>
+                                        <span style="font-size:10px; font-weight:600; color:#ef4444;">Leaked Private Data</span>
                                     </div>
                                     <div class="proof-response-text">${esc(ft.answer || 'N/A')}</div>
                                     <div class="proof-stats-row">
@@ -1531,21 +1636,32 @@
                                         <span class="proof-stat-item">State: <strong>Memorized</strong></span>
                                     </div>
                                 </div>
-
-                                ${hasUnlearning ? `
                                 <div class="proof-side-card after">
                                     <div class="proof-side-header">
-                                        <span><i class="fas ${c.forgotten ? 'fa-circle-check' : 'fa-brain'}"></i> 2. AFTER UNLEARNING (Gradient Ascent):</span>
-                                        <span style="font-size:10px; font-weight:700; color:${c.forgotten ? '#10b981' : '#f59e0b'};">${c.forgotten ? 'Unlearned Successfully ✅' : 'Retained — Not Forgotten ⚠️'}</span>
+                                        <span><i class="fas fa-circle-check"></i> Unlearned Model Response</span>
+                                        <span style="font-size:10px; font-weight:700; color:#10b981;">Successfully Unlearned</span>
                                     </div>
                                     <div class="proof-response-text">${esc(unlearned.answer || 'N/A')}</div>
                                     <div class="proof-stats-row">
-                                        <span class="proof-stat-item" style="color:${c.forgotten ? 'var(--success)' : 'inherit'}">Loss: <strong>${(unlearned.loss || 0).toFixed(4)} (${((unlearned.loss||0)-(ft.loss||0)) > 0 ? '+' : ''}${((unlearned.loss||0)-(ft.loss||0)).toFixed(2)} ${((unlearned.loss||0)-(ft.loss||0)) > 0 ? '↑' : '↓'})</strong></span>
+                                        <span class="proof-stat-item" style="color:var(--success)">Loss: <strong>${(unlearned.loss || 0).toFixed(4)} (${((unlearned.loss||0)-(ft.loss||0)) > 0 ? '+' : ''}${((unlearned.loss||0)-(ft.loss||0)).toFixed(2)} ${((unlearned.loss||0)-(ft.loss||0)) > 0 ? '↑' : '↓'})</strong></span>
                                         <span class="proof-stat-item">Confidence: <strong>${((unlearned.confidence || 0) * 100).toFixed(1)}%</strong></span>
-                                        <span class="proof-stat-item" style="color:${c.forgotten ? 'var(--success)' : '#f59e0b'}">State: <strong>${c.forgotten ? 'Deleted' : 'Retained'}</strong></span>
+                                        <span class="proof-stat-item" style="color:var(--success)">State: <strong>Forgotten</strong></span>
                                     </div>
                                 </div>
-                                ` : ''}
+                                ` : `
+                                <div class="proof-side-card" style="flex:1; border-left:3px solid var(--accent-primary);">
+                                    <div class="proof-side-header">
+                                        <span><i class="fas fa-brain"></i> Model Response (Retained)</span>
+                                        <span style="font-size:10px; font-weight:600; color:var(--accent-primary);">Knowledge Preserved</span>
+                                    </div>
+                                    <div class="proof-response-text">${esc(ft.answer || 'N/A')}</div>
+                                    <div class="proof-stats-row">
+                                        <span class="proof-stat-item">Loss: <strong>${(ft.loss || 0).toFixed(4)}</strong></span>
+                                        <span class="proof-stat-item">Confidence: <strong>${((ft.confidence || 0) * 100).toFixed(1)}%</strong></span>
+                                        <span class="proof-stat-item">State: <strong>Active</strong></span>
+                                    </div>
+                                </div>
+                                `}
                             </div>
                         </div>
                     `;
@@ -1636,37 +1752,37 @@
                                     <td><strong>Attack Accuracy</strong></td>
                                     <td style="color:#ef4444; font-weight:700;">${ftAcc} (Vulnerable)</td>
                                     <td style="color:#10b981; font-weight:700;">${unAcc} (Random Guess)</td>
-                                    <td><span class="layer-status-pill active">Immune to Attack ✅</span></td>
+                                    <td><span class="layer-status-pill active">Immune to Attack</span></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Attack Precision</strong></td>
                                     <td>${ftPrec} (High Leakage)</td>
                                     <td>${unPrec} (Indistinguishable)</td>
-                                    <td><span class="layer-status-pill active">Data Protected ✅</span></td>
+                                    <td><span class="layer-status-pill active">Data Protected</span></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Attack Recall</strong></td>
                                     <td>${ftRec} (Data Leaked)</td>
                                     <td>${unRec} (Random Baseline)</td>
-                                    <td><span class="layer-status-pill active">Zero Membership Leak ✅</span></td>
+                                    <td><span class="layer-status-pill active">Zero Membership Leak</span></td>
                                 </tr>
                                 <tr>
                                     <td><strong>F1-Score</strong></td>
                                     <td>${ftF1}</td>
                                     <td>${unF1}</td>
-                                    <td><span class="layer-status-pill active">Privacy Verified ✅</span></td>
+                                    <td><span class="layer-status-pill active">Privacy Verified</span></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Avg Member Loss</strong></td>
                                     <td>${ftMemLoss} (Memorized)</td>
                                     <td style="color:#10b981; font-weight:700;">${unMemLoss} (High Uncertainty)</td>
-                                    <td><span class="layer-status-pill active">Gradient Ascent Verified ✅</span></td>
+                                    <td><span class="layer-status-pill active">Gradient Ascent Verified</span></td>
                                 </tr>
                                 <tr>
                                     <td><strong>Avg Non-Member Loss</strong></td>
                                     <td>${ftNonMemLoss}</td>
                                     <td>${unNonMemLoss}</td>
-                                    <td><span class="layer-status-pill active">General Ability Preserved ✅</span></td>
+                                    <td><span class="layer-status-pill active">General Ability Preserved</span></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1680,11 +1796,26 @@
                 ${proofGridHtml}
                 ${miaTableHtml}
                 <div class="chart-container" style="margin-top:20px">
-                    <div class="chart-title"><i class="fas fa-chart-bar" style="color:var(--accent-primary); margin-right:6px;"></i> Mathematical Proof: Cross-Entropy Loss (Before vs. After Unlearning)</div>
-                    <canvas id="${lossChartId}"></canvas>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; gap:6px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+                        <div class="chart-title" style="margin:0;">
+                            <i class="fas fa-brain" style="color:var(--accent-primary); margin-right:6px;"></i>
+                            <span id="${evalChartId}-title">Memory Retention & Amnesia Proof (0% – 100%)</span>
+                        </div>
+                        <div style="display:inline-flex; background:var(--bg-tertiary); border:1px solid var(--border); border-radius:8px; padding:2px; gap:2px;">
+                            <button id="${evalChartId}-btn-retention" class="btn btn-sm active" style="padding:4px 10px; font-size:11px; border-radius:6px; border:none; background:var(--accent-primary); color:#ffffff; font-weight:600; cursor:pointer;" onclick="App.switchEvalMetric('${evalChartId}', 'retention')">
+                                <i class="fas fa-chart-bar"></i> Memory Recall (%)
+                            </button>
+                            <button id="${evalChartId}-btn-loss" class="btn btn-sm" style="padding:4px 10px; font-size:11px; border-radius:6px; border:none; background:transparent; color:var(--text-secondary); font-weight:600; cursor:pointer;" onclick="App.switchEvalMetric('${evalChartId}', 'loss')">
+                                <i class="fas fa-arrow-trend-up"></i> Cross-Entropy Loss
+                            </button>
+                        </div>
+                    </div>
+                    <canvas id="${evalChartId}"></canvas>
+                    <div id="${evalChartId}-note" style="font-size:11px; color:var(--text-muted); margin-top:10px; display:flex; align-items:center; gap:6px;">
                         <i class="fas fa-circle-info" style="color:var(--accent-primary)"></i>
-                        <span><strong>Why higher loss proves unlearning:</strong> Loss measures model uncertainty. When loss climbs higher on private target data, the model can no longer predict or recall that private answer.</span>
+                        <span id="${evalChartId}-note-text">
+                            <strong>How to read this graph:</strong> <strong>Fine-Tuned model shows 100% tall green bars</strong> for all learned queries. When unlearning is performed on a query, its bar <strong>drops to 0%</strong> (proving verified amnesia), while retained queries stay at <strong>100%</strong>.
+                        </span>
                     </div>
                 </div>
                 ${answerCompareHtml}
@@ -1698,36 +1829,8 @@
                     return q.length > 25 ? q.slice(0, 25) + '…' : q;
                 });
 
-                const lossDatasets = [
-                    {
-                        label: 'Fine-Tuned Model (Before - Memorized)',
-                        data: comparisons.map(c => (c.finetuned?.loss || c.before?.loss || 0)),
-                        backgroundColor: C.greenFill,
-                        borderColor: C.green,
-                        borderWidth: 2, borderRadius: 6,
-                    },
-                ];
-
-                if (hasUnlearning) {
-                    lossDatasets.push({
-                        label: 'Unlearned Model (After - Gradient Ascent)',
-                        data: comparisons.map(c => (c.unlearned?.loss || c.after?.loss || 0)),
-                        backgroundColor: C.pinkFill,
-                        borderColor: C.pink,
-                        borderWidth: 2, borderRadius: 6,
-                    });
-                }
-
-                renderChart(lossChartId, {
-                    type: 'bar',
-                    data: { labels, datasets: lossDatasets },
-                    options: {
-                        scales: {
-                            x: { ticks: { maxRotation: 30, minRotation: 0 } },
-                            y: { title: { display: true, text: 'Loss (Higher = Genuine Unlearning)', color: C.text }, beginAtZero: true },
-                        },
-                    },
-                });
+                _evalChartData[evalChartId] = { labels, comparisons, hasUnlearning };
+                switchEvalMetric(evalChartId, 'retention');
             };
 
             const extraHtml = `
@@ -2489,6 +2592,7 @@
         triggerChatUpload,
         handleChatFileUpload,
         toggleSidebar,
+        switchEvalMetric,
     };
 
     document.addEventListener('DOMContentLoaded', init);

@@ -200,6 +200,58 @@ def send_evaluation_report_email(to_email: str, eval_data: dict) -> bool:
         after_state = "Unlearned" if is_forgotten else "Retained"
         loss_arrow = "↑" if (un_loss - ft_loss) > 0 else "↓"
 
+        # Build comparison section based on whether query was actually unlearned
+        if is_forgotten and has_unlearning:
+            # Show side-by-side before/after for unlearned queries
+            comparison_html = f"""
+                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                        <td class="comp-cell" width="48%" style="vertical-align: top;">
+                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #94a3b8; border-radius: 6px; padding: 9px 11px; box-sizing: border-box;">
+                                <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">
+                                    Fine-Tuned Response
+                                </div>
+                                <div style="font-size: 12px; color: #334155; font-weight: 500; margin-bottom: 4px; line-height: 1.4; word-break: break-word;">
+                                    {ft_ans}
+                                </div>
+                                <div style="font-size: 11px; color: #64748b;">
+                                    Loss: <strong style="color: #0f172a;">{ft_loss:.4f}</strong> <span style="font-size: 10px; color: #94a3b8;">(Memorized)</span>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="comp-spacer" width="4%" style="font-size: 1px; line-height: 1px;">&nbsp;</td>
+                        <td class="comp-cell" width="48%" style="vertical-align: top;">
+                            <div style="background: {after_bg}; border: 1px solid {after_border}; border-left: 3px solid {after_accent}; border-radius: 6px; padding: 9px 11px; box-sizing: border-box;">
+                                <div style="font-size: 10px; font-weight: 800; color: {after_accent}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">
+                                    Unlearned Response
+                                </div>
+                                <div style="font-size: 12px; color: #0f172a; font-weight: 600; margin-bottom: 4px; line-height: 1.4; word-break: break-word;">
+                                    {un_ans}
+                                </div>
+                                <div style="font-size: 11px; color: #64748b;">
+                                    Loss: <strong style="color: #0f172a;">{un_loss:.4f}</strong> <span style="font-size: 10px; color: {after_accent}; font-weight: 700;">({'+' if (un_loss-ft_loss)>0 else ''}{un_loss-ft_loss:.4f} {loss_arrow})</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            """
+        else:
+            # Show single response card for retained queries
+            comparison_html = f"""
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #4f46e5; border-radius: 6px; padding: 9px 11px;">
+                    <div style="font-size: 10px; font-weight: 800; color: #4f46e5; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">
+                        Model Response (Retained)
+                    </div>
+                    <div style="font-size: 12px; color: #334155; font-weight: 500; margin-bottom: 4px; line-height: 1.4; word-break: break-word;">
+                        {ft_ans}
+                    </div>
+                    <div style="font-size: 11px; color: #64748b;">
+                        Loss: <strong style="color: #0f172a;">{ft_loss:.4f}</strong> <span style="font-size: 10px; color: #94a3b8;">(Knowledge Preserved)</span>
+                    </div>
+                </div>
+            """
+
         cards_html += f"""
         <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f8fafc; border-bottom: 1px solid #e2e8f0;">
@@ -216,37 +268,7 @@ def send_evaluation_report_email(to_email: str, eval_data: dict) -> bool:
                 </tr>
             </table>
             <div style="padding: 12px;">
-                <table width="100%" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                        <td class="comp-cell" width="48%" style="vertical-align: top;">
-                            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 3px solid #94a3b8; border-radius: 6px; padding: 9px 11px; box-sizing: border-box;">
-                                <div style="font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">
-                                    Before (Fine-Tuned)
-                                </div>
-                                <div style="font-size: 12px; color: #334155; font-weight: 500; margin-bottom: 4px; line-height: 1.4; word-break: break-word;">
-                                    {ft_ans}
-                                </div>
-                                <div style="font-size: 11px; color: #64748b;">
-                                    Loss: <strong style="color: #0f172a;">{ft_loss:.4f}</strong> <span style="font-size: 10px; color: #94a3b8;">(Memorized)</span>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="comp-spacer" width="4%" style="font-size: 1px; line-height: 1px;">&nbsp;</td>
-                        <td class="comp-cell" width="48%" style="vertical-align: top;">
-                            <div style="background: {after_bg}; border: 1px solid {after_border}; border-left: 3px solid {after_accent}; border-radius: 6px; padding: 9px 11px; box-sizing: border-box;">
-                                <div style="font-size: 10px; font-weight: 800; color: {after_accent}; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px;">
-                                    After ({after_state})
-                                </div>
-                                <div style="font-size: 12px; color: #0f172a; font-weight: 600; margin-bottom: 4px; line-height: 1.4; word-break: break-word;">
-                                    {un_ans}
-                                </div>
-                                <div style="font-size: 11px; color: #64748b;">
-                                    Loss: <strong style="color: #0f172a;">{un_loss:.4f}</strong> <span style="font-size: 10px; color: {after_accent}; font-weight: 700;">({'+' if (un_loss-ft_loss)>0 else ''}{un_loss-ft_loss:.4f} {loss_arrow})</span>
-                                </div>
-                            </div>
-                        </td>
-                    </tr>
-                </table>
+                {comparison_html}
             </div>
         </div>
         """

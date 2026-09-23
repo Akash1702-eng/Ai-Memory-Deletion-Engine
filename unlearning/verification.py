@@ -37,9 +37,17 @@ class ForgettingVerifier:
         test_queries: list[str],
         expected_answers: Optional[list[str]] = None,
         label: str = "current",
+        context_per_query: Optional[list[list[str]]] = None,
     ) -> list[dict]:
         """
         Evaluate the model on test queries.
+
+        Parameters
+        ----------
+        context_per_query : list[list[str]], optional
+            Per-query context memories to inject into the prompt, mirroring
+            the chat service's memory-injection behaviour so that evaluation
+            answers match what the user actually sees in chat.
 
         Returns per-query results with loss, confidence, and generated text.
         """
@@ -47,7 +55,9 @@ class ForgettingVerifier:
         results = []
 
         for i, query in enumerate(test_queries):
-            prompt = build_chat_prompt(query, [])
+            memories = context_per_query[i] if context_per_query and i < len(context_per_query) else []
+            prompt = build_chat_prompt(query, memories)
+            expected_ans = expected_answers[i] if expected_answers and i < len(expected_answers) else None
 
             inputs = self.tokenizer(
                 prompt,
@@ -57,15 +67,54 @@ class ForgettingVerifier:
             ).to(self.device)
 
             with torch.inference_mode():
-                outputs = self.model(**inputs, labels=inputs["input_ids"])
-                loss = outputs.loss.item()
-                perplexity = torch.exp(outputs.loss).item()
+                # If target answer is provided, compute cross-entropy loss specifically
+                # on the target answer tokens (masking prompt tokens to -100).
+                # This accurately measures memorization (low loss) vs unlearning (high loss).
+                if expected_ans and expected_ans.strip():
+                    full_text = prompt + expected_ans.strip() + "<|im_end|>"
+                    full_enc = self.tokenizer(
+                        full_text,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=get_settings().training_max_seq_length,
+                    ).to(self.device)
+                    prompt_enc = self.tokenizer(
+                        prompt,
+                        return_tensors="pt",
+                        truncation=True,
+                        max_length=get_settings().training_max_seq_length,
+                    )
+                    prompt_len = prompt_enc["input_ids"].shape[1]
 
-                logits = outputs.logits[:, :-1, :]
-                labels = inputs["input_ids"][:, 1:]
-                probs = torch.softmax(logits, dim=-1)
-                token_probs = probs.gather(2, labels.unsqueeze(-1)).squeeze(-1)
-                avg_confidence = token_probs.mean().item()
+                    target_labels = full_enc["input_ids"].clone()
+                    target_labels[:, :prompt_len] = -100
+
+                    target_out = self.model(
+                        input_ids=full_enc["input_ids"],
+                        attention_mask=full_enc["attention_mask"],
+                        labels=target_labels,
+                    )
+                    loss = target_out.loss.item()
+                    perplexity = torch.exp(target_out.loss).item()
+
+                    logits = target_out.logits[:, prompt_len - 1 : -1, :]
+                    ans_labels = full_enc["input_ids"][:, prompt_len:]
+                    if ans_labels.shape[1] > 0 and logits.shape[1] == ans_labels.shape[1]:
+                        probs = torch.softmax(logits, dim=-1)
+                        token_probs = probs.gather(2, ans_labels.unsqueeze(-1)).squeeze(-1)
+                        avg_confidence = token_probs.mean().item()
+                    else:
+                        avg_confidence = 0.5
+                else:
+                    outputs = self.model(**inputs, labels=inputs["input_ids"])
+                    loss = outputs.loss.item()
+                    perplexity = torch.exp(outputs.loss).item()
+
+                    logits = outputs.logits[:, :-1, :]
+                    labels = inputs["input_ids"][:, 1:]
+                    probs = torch.softmax(logits, dim=-1)
+                    token_probs = probs.gather(2, labels.unsqueeze(-1)).squeeze(-1)
+                    avg_confidence = token_probs.mean().item()
 
                 gen_output = self.model.generate(
                     **inputs,
@@ -132,7 +181,7 @@ class ForgettingVerifier:
                     "confidence_change": round(after["avg_confidence"] - before["avg_confidence"], 6),
                     "perplexity_change": round(after["perplexity"] - before["perplexity"], 4),
                 },
-                "forgotten": after["loss"] > before["loss"],
+                "forgotten": (after["loss"] - before["loss"]) > max(0.1, before["loss"] * 0.10),
             })
 
         avg_loss_before = sum(c["before"]["loss"] for c in comparisons) / max(len(comparisons), 1)
@@ -193,7 +242,7 @@ class ForgettingVerifier:
                     "confidence_change": round(unlearned["avg_confidence"] - ft["avg_confidence"], 6),
                     "perplexity_change": round(unlearned["perplexity"] - ft["perplexity"], 4),
                 } if unlearned else None,
-                "forgotten": unlearned["loss"] > ft["loss"] if unlearned else False,
+                "forgotten": (unlearned["loss"] - ft["loss"]) > max(0.1, ft["loss"] * 0.10) if unlearned else False,
             }
             comparisons.append(item)
 
